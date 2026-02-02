@@ -49,11 +49,41 @@ static int cmd_c(char *args) {
 
 
 static int cmd_q(char *args) {
-  return -1;
+  // return -1;
+  exit(0);
 }
 
 static int cmd_help(char *args);
 
+static int cmd_si(char *args){
+  int n;
+  if(args == NULL){
+    n = 1;
+  }
+  else{
+    n = atoi(args);
+  }
+  cpu_exec(n);
+  return 0;
+}
+
+static int cmd_info(char *args){
+  if(args == NULL){
+    printf("info r\n");
+    return 0;
+  }
+  else if(strcmp(args, "r") == 0){
+    isa_reg_display();
+    return 0;
+  }
+  else{
+    printf("Unknown command '%s'\n", args);
+    return 0;
+  }
+}
+static int cmd_x(char *args){
+  
+}
 static struct {
   const char *name;
   const char *description;
@@ -61,6 +91,9 @@ static struct {
 } cmd_table [] = {
   { "help", "Display information about all supported commands", cmd_help },
   { "c", "Continue the execution of the program", cmd_c },
+  { "si", "Step into one instruction", cmd_si },
+  {"info", "Print register / watch point values",  cmd_info},
+  {"x", "Examine memory",cmd_x},
   { "q", "Exit NEMU", cmd_q },
 
   /* TODO: Add more commands */
@@ -137,7 +170,7 @@ void sdb_mainloop() {
 void init_sdb() {
   /* Compile the regular expressions. */
   init_regex();
-
+  
   /* Initialize the watchpoint pool. */
   init_wp_pool();
 }
