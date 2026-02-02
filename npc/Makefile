@@ -1,7 +1,7 @@
 TOPNAME = top
 NXDC_FILES = constr/top.nxdc
-INC_PATH ?= 
-NVBOARD_HOME = /home/dream/ysyx-workbench/nvboard
+INC_PATH ?=
+
 VERILATOR = verilator
 VERILATOR_CFLAGS += -MMD --build -cc  \
 				-O3 --x-assign fast --x-initial fast --noassert

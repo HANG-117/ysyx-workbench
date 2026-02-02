@@ -26,7 +26,4 @@ int main() {
     nvboard_update();
     single_cycle();
   }
-  nvboard_quit();
-  return 0;
 }
-  

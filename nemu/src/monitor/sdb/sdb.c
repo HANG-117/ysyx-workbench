@@ -18,7 +18,7 @@
 #include <readline/readline.h>
 #include <readline/history.h>
 #include "sdb.h"
-
+#include <memory/vaddr.h>
 static int is_batch_mode = false;
 
 void init_regex();
@@ -81,8 +81,46 @@ static int cmd_info(char *args){
     return 0;
   }
 }
-static int cmd_x(char *args){
-  
+static int cmd_p(char *args) {
+  bool success;
+  printf("the value is %x\n", expr(args, &success));
+  assert(success == true);
+  return 0;
+}
+static int cmd_x(char *args) {
+    char *arg1 = strtok(args, " ");
+    char *arg2 = strtok(NULL, " ");
+    
+    if (arg1 == NULL || arg2 == NULL) {
+        printf("Usage: x N EXPR\n");
+        return 0;
+    }
+    
+    int count = atoi(arg1);
+    if (count <= 0) {
+        printf("Invalid count: %d\n", count);
+        return 0;
+    }
+    
+    uint32_t addr;
+    if (sscanf(arg2, "0x%x", &addr) != 1 && sscanf(arg2, "%x", &addr) != 1) {
+        printf("Invalid address: %s\n", arg2);
+        return 0;
+    }
+    
+    for (int i = 0; i < count; i++) {
+        uint32_t current_addr = addr + i * 4;
+        uint32_t value = 0;
+        
+        for (int j = 0; j < 4; j++) {
+            uint8_t byte = vaddr_read(current_addr + j, 1);
+            value |= (byte << (8 * j));
+        }
+        
+        printf("0x%08x: 0x%08x\n", current_addr, value);
+    }
+    
+    return 0;
 }
 static struct {
   const char *name;
@@ -94,7 +132,9 @@ static struct {
   { "si", "Step into one instruction", cmd_si },
   {"info", "Print register / watch point values",  cmd_info},
   {"x", "Examine memory",cmd_x},
+  { "p", "print expression", cmd_p },
   { "q", "Exit NEMU", cmd_q },
+
 
   /* TODO: Add more commands */
 
@@ -166,11 +206,56 @@ void sdb_mainloop() {
     if (i == NR_CMD) { printf("Unknown command '%s'\n", cmd); }
   }
 }
-
 void init_sdb() {
   /* Compile the regular expressions. */
   init_regex();
   
   /* Initialize the watchpoint pool. */
   init_wp_pool();
+}
+
+void expr_batch_test(const char *filename) {
+  FILE *fp = fopen(filename, "r");
+  if (!fp) {
+    printf("无法打开文件: %s\n", filename);
+    return;
+  }
+
+  char line[8192];
+  int total = 0, pass = 0, lineno = 0;
+
+  while (fgets(line, sizeof(line), fp)) {
+    lineno++;
+    line[strcspn(line, "\r\n")] = '\0';
+    if (line[0] == '\0' || line[0] == '#') continue;  // 跳过空行和注释
+
+    total++;
+
+    uint32_t ref;
+    char expr_str[4096];
+
+    if (sscanf(line, "%u %[^\n]", &ref, expr_str) != 2) {
+      printf("第 %d 行格式错误: %s\n", lineno, line);
+      continue;
+    }
+    printf("第 %d 行: %s = %u\n", lineno, expr_str, ref);
+    bool success = true;
+    uint32_t result = expr(expr_str, &success);
+    if (!success) {
+      printf("第 %d 行求值失败: %s\n", lineno, expr_str);
+      continue;
+    }
+
+    if (result == ref) {
+      pass++;
+    } else {
+      printf("[失败] 第 %d 行\n  得到: %u\n  参考: %u\n  表达式: %s\n\n",
+             lineno, result, ref, expr_str);
+    }
+  }
+
+  fclose(fp);
+
+  printf("\n总计 %d 条，通过 %d 条，通过率 %.1f%%\n",
+         total, pass, total ? pass * 100.0 / total : 0.0);
 }

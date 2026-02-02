@@ -23,7 +23,7 @@ void init_difftest(char *ref_so_file, long img_size, int port);
 void init_device();
 void init_sdb();
 void init_disasm();
-
+void expr_batch_test(const char *filename);
 static void welcome() {
   Log("Trace: %s", MUXDEF(CONFIG_TRACE, ANSI_FMT("ON", ANSI_FG_GREEN), ANSI_FMT("OFF", ANSI_FG_RED)));
   IFDEF(CONFIG_TRACE, Log("If trace is enabled, a log file will be generated "
@@ -124,9 +124,14 @@ void init_monitor(int argc, char *argv[]) {
 
   /* Initialize differential testing. */
   init_difftest(diff_so_file, img_size, difftest_port);
-
-  /* Initialize the simple debugger. */
   init_sdb();
+
+  // if (argc == 2 ) {  // 简单判断是文件
+  //   printf("进入 expr 批量测试模式，文件: %s\n", argv[1]);
+  //   expr_batch_test(argv[1]);
+  //   exit(0);  // 测试完直接退出
+  // }
+  /* Initialize the simple debugger. */
 
   IFDEF(CONFIG_ITRACE, init_disasm());
 
