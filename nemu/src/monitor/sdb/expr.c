@@ -27,7 +27,7 @@ enum {
   /* TODO: Add more token types */
 
 };
-
+               
 static struct rule {
   const char *regex;
   int token_type;
@@ -91,11 +91,14 @@ typedef struct token {
 static Token tokens[65336] __attribute__((used)) = {};
 static int nr_token __attribute__((used))  = 0;
 
+
+
+
 static bool make_token(char *e) {
   int position = 0;
   int i;
   regmatch_t pmatch;
-  printf("make_token: %s\n",e);
+  //printf("make_token: %s\n",e);
   nr_token = 0;
 
   while (e[position] != '\0') {
@@ -166,8 +169,12 @@ static bool make_token(char *e) {
 
 int eval(int p,int q);
 int check_parentheses(int p,int q);
+
+
+
+
 word_t expr(char *e, bool *success) {
-  printf("expr(%s)\n", e);
+  //printf("expr(%s)\n", e);
   if (!make_token(e)) {
     printf("make_token failed\n");
     *success = false;
@@ -179,6 +186,8 @@ word_t expr(char *e, bool *success) {
   if(res == ERROR) TODO();
   return res;
 }
+
+
 int eval(int p,int q){
   for(int i = p; i <= q; i++){
     if(tokens[i].type == '*'&&(i==0 || (tokens[i-1].type != TK_NUMBER && tokens[i-1].type != TK_REG && tokens[i-1].type != TK_HEX && tokens[i-1].type != ')' ))){
@@ -236,7 +245,7 @@ int eval(int p,int q){
     case '-': return left - right;
     case '*': return left * right;
     case '/':
-      if (right == 0) return 0;  
+      assert(right != 0);
       return left / right;
     case TK_EQ:   return left == right;
     case TK_NEQ:  return left != right;
@@ -247,6 +256,10 @@ int eval(int p,int q){
       return ERROR;
   }
 }
+
+
+
+
 int check_parentheses(int p, int q) {
     if (p > q) return -1;
 

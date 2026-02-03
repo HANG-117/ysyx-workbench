@@ -16,8 +16,17 @@
 #ifndef __SDB_H__
 #define __SDB_H__
 
+
+#ifdef CONFIG_WATCHPOINT
+void check_watchpoints(void);
+#define CHECK_WATCHPOINTS()  check_watchpoints()
+#else
+#define CHECK_WATCHPOINTS()  ((void)0)
+#endif
 #include <common.h>
 
 word_t expr(char *e, bool *success);
-
+void add_point(char *e);
+void delete_point(int n);
+void watchpoint_display();
 #endif

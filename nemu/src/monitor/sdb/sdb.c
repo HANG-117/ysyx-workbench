@@ -76,6 +76,10 @@ static int cmd_info(char *args){
     isa_reg_display();
     return 0;
   }
+  else if(strcmp(args, "w") == 0){
+    watchpoint_display();
+    return 0;
+  }
   else{
     printf("Unknown command '%s'\n", args);
     return 0;
@@ -122,6 +126,15 @@ static int cmd_x(char *args) {
     
     return 0;
 }
+static int cmd_watch(char *args){
+  add_point(args);
+  return 0;
+}
+static int cmd_d(char *args){
+  printf("%d\n",atoi(args));
+  delete_point(atoi(args));
+  return 0;
+}
 static struct {
   const char *name;
   const char *description;
@@ -133,6 +146,8 @@ static struct {
   {"info", "Print register / watch point values",  cmd_info},
   {"x", "Examine memory",cmd_x},
   { "p", "print expression", cmd_p },
+  { "watch","add watchpoint",cmd_watch},
+  { "d", "Delete the specified watchpoint", cmd_d },
   { "q", "Exit NEMU", cmd_q },
 
 

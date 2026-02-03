@@ -21,18 +21,20 @@ char *strdup(const char *s){
   strcpy(p,s);
   return p;
 }
+
+
 typedef struct watchpoint {
   int NO;
   struct watchpoint *next;
   uint32_t data;
   char *expr;
-  uint32_t old_data;
   /* TODO: Add more members if necessary */
 
 } WP;
 
 static WP wp_pool[NR_WP] = {};
 static WP *head = NULL, *free_ = NULL;
+
 
 void init_wp_pool() {
   int i;
@@ -41,14 +43,15 @@ void init_wp_pool() {
     wp_pool[i].next = (i == NR_WP - 1 ? NULL : &wp_pool[i + 1]);
   }
 
-  head = NULL;
-  head -> NO = 0;
+  head  = NULL;
   free_ = wp_pool;
 }
+
+
 WP* new_wp() {
   if(free_ == NULL) {
     printf("NO more watchpoint\n");
-    return NULL;
+    assert(0);
   }
   WP *p = free_;
   free_ = free_->next;
@@ -57,33 +60,42 @@ WP* new_wp() {
   p->data = 0;
   return p;
 }
+
+
 /* TODO: Implement the functionality of watchpoint */
-void add(char *e) {
+void add_point(char *e) {
   WP *p = new_wp();
   p->next = head;
+  if(head != NULL) p->NO = head->NO + 1;
+  else p->NO = 1;
   head = p;
-  p->data = e;
-  p->NO = head->NO;
-  head ->NO++;
   p->expr = strdup(e);
   bool success = false;
-  p->old_data = expr(e, &success);
+  p->data = expr(e, &success);
   if (!success) {
     printf("Invalid expression: %s\n", e);
+    return;
   }
+  printf("Add watchpoint %d: %s = %x\n", p->NO,p->expr,p->data);
 }
+
+
 void free_wp(WP *wp) {
   wp->next = free_;
   wp->expr = NULL;
   free_ = wp;
 }
-void delete(int NO) {
-  WP *pre = head;
-  WP *cur = head->next;
+
+
+void delete_point(int NO) {
+  WP *pre = NULL;
+  WP *cur = head;
   int f = 0;
   while(cur != NULL) {
     if(cur->NO == NO) {
-      pre->next = cur->next;
+      printf("Delete watchpoint %d: %s \n", cur->NO,cur->expr);
+      if(pre != NULL)pre->next = cur->next;
+      else head = cur->next;
       free_wp(cur);
       f = 1;
       break;
@@ -95,10 +107,32 @@ void delete(int NO) {
     printf("NO such watchpoint\n");
   }
 }
-void list(){
+
+
+void watchpoint_display(){
   WP *p = head;
   while(p != NULL) {
-    printf("watchpoint %d: %s = %s\n", p->NO,p->expr,p->data);
+    printf("watchpoint %d: %s = %x\n", p->NO,p->expr,p->data);
     p = p->next;
   }
+}
+
+
+void check_watchpoints(){
+  WP *p = head;
+  while(p != NULL) {
+    bool success = false;
+    uint32_t data_new = expr(p->expr, &success);
+    if (!success) {
+      printf("Invalid expression: %s\n", p->expr);
+      return;
+    }
+    if(data_new != p->data) {
+      printf("%d %s old_data= 0x%x\n", p->NO,p->expr, p->data);
+      p->data = data_new;
+      printf("%d %s new_data= 0x%x\n", p->NO,p->expr, p->data);
+    }
+    p = p->next;
+  }
+  if(nemu_state.state != NEMU_END)nemu_state.state = NEMU_STOP;
 }
