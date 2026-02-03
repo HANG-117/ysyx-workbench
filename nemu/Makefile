@@ -62,3 +62,10 @@ else
 # Include rules to build NEMU
 include $(NEMU_HOME)/scripts/native.mk
 endif
+
+.PHONY: count
+
+count:
+	@echo "Counting non-empty lines in .c and .h files..."
+	@find . \( -name "*.c" -o -name "*.h" \) -type f \
+		-exec grep -h -v '^[[:space:]]*$$' {} + | wc -l
