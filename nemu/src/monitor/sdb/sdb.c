@@ -227,7 +227,7 @@ void expr_batch_test(const char *filename) {
   while (fgets(line, sizeof(line), fp)) {
     lineno++;
     line[strcspn(line, "\r\n")] = '\0';
-    if (line[0] == '\0' || line[0] == '#') continue;  // 跳过空行和注释
+    if (line[0] == '\0' || line[0] == '#') continue;  
 
     total++;
 
