@@ -4,7 +4,7 @@ module ascii(
 );
 
 always @(*) begin
-        ascii_noshift = 8'h00;  // 默认无输出
+        ascii_noshift = 8'h00;  
         case (in)
             8'h1C: ascii_noshift = 8'h61;  // a
             8'h32: ascii_noshift = 8'h62;  // b

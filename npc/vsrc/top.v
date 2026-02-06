@@ -21,7 +21,8 @@ module top(
     
     reg [7:0] key_count = 8'h00;  
     reg key_pressed = 1'b0;      
-    reg [7:0] last_scan_code;     
+    reg [7:0] last_scan_code;
+    reg [32:0] clk_count;
     
     reg nextdata_n;
     reg [1:0] key_state;
@@ -38,8 +39,11 @@ module top(
         else if(data_ready) begin
             case(key_state)
                 WAIT_KEY: begin
-
+                    //if(scan_code != 8'hF0) begin
+                    clk_count++;
+                    last_scan_code = (clk_count == 500000) ? 8'h00 : last_scan_code;
                     if(scan_code != 8'hF0 && last_scan_code != scan_code) begin
+                        clk_count = 0;
                         key_pressed = 1'b1;
                         key_state <= KEY_PRESSED;
                         key_count <= key_count + 8'h01; 
@@ -52,7 +56,7 @@ module top(
                     nextdata_n <= 1'b0; 
                 end
                 KEY_PRESSED: begin
-                    $display("按键释放，扫描码: %h", scan_code);
+                    $display("按键准备释放，扫描码: %h", scan_code);
                     key_pressed = 1'b1;
                     if(scan_code == 8'hF0) begin
                         key_state <= WAIT_RELEASE;
