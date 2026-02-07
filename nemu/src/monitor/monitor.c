@@ -127,10 +127,10 @@ void init_monitor(int argc, char *argv[]) {
   init_sdb();
 
   // if (argc == 2 ) {  // 简单判断是文件
-  //   printf("进入 expr 批量测试模式，文件: %s\n", argv[1]);
-  //   expr_batch_test(argv[1]);
-  //   exit(0);  // 测试完直接退出
-  // }
+  // printf("进入 expr 批量测试模式，文件: %s\n", argv[1]);
+  //    expr_batch_test(argv[1]);
+  //    exit(0);  // 测试完直接退出
+  //  }
   /* Initialize the simple debugger. */
 
   IFDEF(CONFIG_ITRACE, init_disasm());
