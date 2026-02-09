@@ -87,7 +87,7 @@ static int cmd_info(char *args){
 }
 static int cmd_p(char *args) {
   bool success;
-  printf("the value is %x\n", expr(args, &success));
+  printf("the value is 0x%08x\n", expr(args, &success));
   assert(success == true);
   return 0;
 }
