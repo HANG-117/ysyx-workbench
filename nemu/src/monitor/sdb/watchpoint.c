@@ -131,8 +131,8 @@ void check_watchpoints(){
       printf("%d %s old_data= 0x%x\n", p->NO,p->expr, p->data);
       p->data = data_new;
       printf("%d %s new_data= 0x%x\n", p->NO,p->expr, p->data);
+      if(nemu_state.state != NEMU_END && nemu_state.state != NEMU_STOP) {nemu_state.state = NEMU_STOP;}
     }
     p = p->next;
   }
-  if(nemu_state.state != NEMU_END)nemu_state.state = NEMU_STOP;
 }
