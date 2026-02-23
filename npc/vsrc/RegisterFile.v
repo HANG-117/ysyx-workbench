@@ -1,36 +1,24 @@
-module RegisterFile #(ADDR_WIDTH = 1, DATA_WIDTH = 1) (
+module RegisterFile #(ADDR_WIDTH = 5, DATA_WIDTH = 32) (
   input clk,
   input rst,
   input [31:0] pc,
-	input [ADDR_WIDTH-1:0] raddr1,
-	input [ADDR_WIDTH-1:0] raddr2,
-	output logic [DATA_WIDTH-1:0] rdata1,
-	output logic [DATA_WIDTH-1:0] rdata2,
-
+  output [DATA_WIDTH-1:0] rdata1,
+  input [ADDR_WIDTH-1:0] raddr1,
+  output [DATA_WIDTH-1:0] rdata2,
+  input [ADDR_WIDTH-1:0] raddr2,
   input [DATA_WIDTH-1:0] wdata,
   input [ADDR_WIDTH-1:0] waddr,
   input wen
 );
-  
   reg [DATA_WIDTH-1:0] rf [2**ADDR_WIDTH-1:0];
-  integer i;
-  always @(*) begin
-    rdata1 = rf[raddr1];
-    rdata2 = rf[raddr2];
-  end
-  
-  always @(posedge clk) begin
+  assign rdata1 = raddr1== 0 ? {DATA_WIDTH{1'b0}} : rf[raddr1];
+  assign rdata2 = raddr2== 0 ? {DATA_WIDTH{1'b0}} : rf[raddr2];
 
-    if(rst) begin
-      for(i = 0; i < 2**ADDR_WIDTH; i = i + 1) begin
-        rf[i] <= 0;
-      end
-    end
-    else begin
-      if (wen&&waddr != 0) begin
-        rf[waddr] <= wdata;
-        $display("pc : %08x Write Register: x%0d <= 0x%0h, ", pc, waddr, wdata);
-      end
+  always @(posedge clk) begin
+    if (wen) begin
+      rf[waddr] <= wdata;
+      $strobe("x10 = %08h x11 = %08h x2 = %08h", rf[10], rf[11], rf[2]);
+
     end
   end
 endmodule

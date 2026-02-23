@@ -5,7 +5,7 @@
 #define MEM_SIZE_WORDS (1 << 18) 
 static uint32_t ROM[MEM_SIZE_WORDS];
 static uint32_t RAM[MEM_SIZE_WORDS];
-static TOP_NAME dut;
+static TOP_NAME *npc = new TOP_NAME;
 
 void nvboard_bind_all_pins(TOP_NAME* top);
 
@@ -36,35 +36,45 @@ void load_program(const char* filename) {
   std::cout << "Loaded " << word_count << " instructions from " << filename << std::endl;
 }
 
+void pmem_read(uint32_t addr){
+  if (addr < 0x80000000) {
+    npc->mem_rdata = ROM[addr >> 2];
+  } else {
+    npc->mem_rdata = RAM[(addr - 0x80000000) >> 2];
+  }
+}
+
 
 static void single_cycle() {
-  dut.instruction = ROM[dut.PC >> 2];
-  dut.clk = 0; dut.eval();
-  if(dut.mem_read) {
-		if (dut.mem_addr < 0x80000000) {
-			dut.mem_rdata = ROM[dut.mem_addr >> 2];
+  npc->instruction = pmem_read(npc->PC);
+  npc->eval();
+
+  npc->clk = 0; npc->eval();
+  if(npc->mem_read) {
+		if (npc->mem_addr < 0x80000000) {
+			npc->mem_rdata = ROM[npc->mem_addr >> 2];
 		} else {
-			dut.mem_rdata = RAM[(dut.mem_addr - 0x80000000) >> 2];
+			npc->mem_rdata = RAM[(npc->mem_addr - 0x80000000) >> 2];
 		}
 	}
-  dut.clk = 1; dut.eval();
-	if(dut.mem_write) {
-		if (dut.mem_addr < 0x80000000) {
-			ROM[dut.mem_addr >> 2] = dut.mem_wdata;
+  npc->clk = 1; npc->eval();
+	if(npc->mem_write) {
+		if (npc->mem_addr < 0x80000000) {
+			ROM[npc->mem_addr >> 2] = npc->mem_wdata;
 		} else {
-			RAM[(dut.mem_addr - 0x80000000) >> 2] = dut.mem_wdata;
+			RAM[(npc->mem_addr - 0x80000000) >> 2] = npc->mem_wdata;
 		}
 	}
 }
 
 static void reset(int n) {
-  dut.rst = 1;
+  npc->rst = 1;
   while (n -- > 0) single_cycle();
-  dut.rst = 0;
+  npc->rst = 0;
 }
 
 int main() {
-  nvboard_bind_all_pins(&dut);
+  nvboard_bind_all_pins(npc);
   nvboard_init();
   load_program("test/addi_test.bin");
   reset(10);
@@ -72,7 +82,7 @@ int main() {
   while(1) {
     nvboard_update();
     single_cycle();
-    if(dut.PC == 0x10) break;
+    if(npc->PC == 0x10) break;
 
   }
 }

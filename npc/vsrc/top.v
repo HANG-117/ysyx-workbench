@@ -12,106 +12,93 @@ module top (
 	output logic [31:0] PC,
 	output logic [31:0] instruction	
 );
-	logic [4:0] rs1, rs2, rd;
-	logic [31:0] reg_data1, reg_data2;
-	logic [6:0] opcode;
-	logic [2:0] funct3;
-	logic [6:0] funct7;
-	logic [31:0] imm;
-
-
-	logic [4:0] reg_addr;
- 	logic [31:0] reg_wdata;
-	logic reg_write;
+	wire [4:0] rd,rs1,rs2;
+	wire [2:0] funct3;
+	wire [6:0] funct7;
+	wire [6:0] opcode;
+	wire [31:0] imm;
 	
-	logic [2:0] ins_type;
+	assign opcode = instruction[6:0];
+	assign rd = instruction[11:7];
+	assign funct3 = instruction[14:12];
+	assign rs1 = instruction[19:15];
+	assign rs2 = instruction[24:20];
+	assign funct7 = instruction[31:25];
 
-	RegisterFile #(5, 32) regfile (
+	// assign mem_addr    = PC;
+	// assign mem_read    = 1'b1;               
+	// assign mem_write   = 1'b0;               
+	// assign mem_wdata   = 32'h0;
+	// assign instruction = mem_rdata;
+
+	imm_gen immgen (
+		.instruction(instruction),
+		.imm(imm)
+	);
+
+
+	reg reg_write;
+	reg [31:0] reg_wdata, reg_rdata1, reg_rdata2;
+	reg [31:0] alu_result;
+	reg [31:0] alu_in1, alu_in2;
+	reg [2:0] alu_op;
+
+	Alu alu (
+		.in1(alu_in1),
+		.in2(alu_in2),
+		.alu_op(alu_op),
+		.result(alu_result)
+	);
+
+	RegisterFile #(.ADDR_WIDTH(5), .DATA_WIDTH(32)) regfile (
 		.clk(clk),
 		.rst(rst),
 		.pc(PC),
 		.raddr1(rs1),
 		.raddr2(rs2),
-		.rdata1(reg_data1),
-		.rdata2(reg_data2),
+		.rdata1(reg_rdata1),
+		.rdata2(reg_rdata2),
 		.wdata(reg_wdata),
 		.waddr(rd),
-		.wen(reg_write)
+		.wen(reg_write&&(rd != 0)&&(rst == 0))
 	);
 
-	parameter I = 3'b000, S= 3'b001, R = 3'b010, B = 3'b011, U = 3'b100, J = 3'b101;
 
-	always @(*) begin
-		opcode = instruction[6:0];
-		rs1 = instruction[19:15];
-		rs2 = instruction[24:20];
-		funct3 = instruction[14:12];
-		funct7 = instruction[31:25];
-		case (opcode)
-			7'b0010011,7'b1100111,7'b0000011: begin // I-type
-				imm = {{20{instruction[31]}}, instruction[31:20]};
-				ins_type = I;
+	always_comb begin
+		reg_write = 1'b0;
+		reg_wdata = 32'b0;
+		alu_op    = 3'b000;    
+		alu_in1   = reg_rdata1;
+		alu_in2   = reg_rdata2;   
+		case(opcode)
+			7'b0010011: begin 
+				case(funct3)
+					3'b000: begin
+						alu_op = 3'b000; // ADDI
+						alu_in1 = reg_rdata1;
+						alu_in2 = imm;
+						reg_wdata = alu_result;
+						reg_write = 1;
+					end
+					default: begin
+						reg_write = 1'b0;
+					end
+				endcase
 			end
-			7'b0100011: begin // S-type
-				imm = {{20{instruction[31]}}, instruction[31:25], instruction[11:7]};
-				ins_type = S;
-			end
-			7'b0110011: begin // R-type
-				imm = 32'b0;
-				ins_type = R;
-			end
-			7'b1100011: begin // B-type
-				imm = {{20{instruction[31]}}, instruction[7], instruction[30:25], instruction[11:8], 1'b0};
-				ins_type = B;
-			end
-			7'b0110111, 7'b0010111: begin // U-type
-				imm = {instruction[31:12], 12'b0};
-				ins_type = U;
-			end
-			7'b1101111: begin // J-type
-				imm = {{12{instruction[31]}}, instruction[19:12], instruction[20], instruction[30:21], 1'b0};
-				ins_type = J;
-			end
-
 			default: begin
-				imm = 32'b0;
-				ins_type = 3'b111; 
+				reg_write = 1'b0;
 			end
 		endcase
 	end
 
-
-	always @(posedge clk) begin
-		if(rst) begin
-			PC <= 32'h00000000;
-			reg_write <= 1'b0;
-		end
-		else begin
-			reg_write <= 1'b0;
-			case (ins_type)
-				I: begin
-					case (opcode)
-						7'b0010011: begin
-							case (funct3)
-								3'b000: begin
-									//addi
-									reg_wdata <= reg_data1 + imm;
-									reg_write <= 1'b1;
-								end
-								default: begin
-								end 
-							endcase 
-						end
-						default: begin
-							
-						end
-					endcase 
-				end
-				default: begin
-				end
-			endcase 
+	// PC
+	always_ff @(posedge clk) begin
+		if (rst) begin
+			PC <= 32'h0;
+		end else begin
+			$display("PC: %08h Instruction: %08h", PC, instruction);
 			PC <= PC + 4;
 		end
 	end
-	
+
 endmodule
