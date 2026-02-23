@@ -1,5 +1,5 @@
 #include <nvboard.h>
-#include <Vtop.h>
+#include <VNPC.h>
 #include <iostream>
 #include <fstream>
 #define MEM_SIZE_WORDS (1 << 18) 
@@ -38,33 +38,20 @@ void load_program(const char* filename) {
 
 void pmem_read(uint32_t addr){
   if (addr < 0x80000000) {
-    npc->mem_rdata = ROM[addr >> 2];
+    npc->imem_rdata = ROM[addr >> 2];
   } else {
-    npc->mem_rdata = RAM[(addr - 0x80000000) >> 2];
+    npc->dmem_rdata = RAM[(addr - 0x80000000) >> 2];
   }
 }
 
 
 static void single_cycle() {
-  npc->instruction = pmem_read(npc->PC);
+  npc->clk = 0;
   npc->eval();
+  pmem_read(npc->imem_addr);
 
-  npc->clk = 0; npc->eval();
-  if(npc->mem_read) {
-		if (npc->mem_addr < 0x80000000) {
-			npc->mem_rdata = ROM[npc->mem_addr >> 2];
-		} else {
-			npc->mem_rdata = RAM[(npc->mem_addr - 0x80000000) >> 2];
-		}
-	}
-  npc->clk = 1; npc->eval();
-	if(npc->mem_write) {
-		if (npc->mem_addr < 0x80000000) {
-			ROM[npc->mem_addr >> 2] = npc->mem_wdata;
-		} else {
-			RAM[(npc->mem_addr - 0x80000000) >> 2] = npc->mem_wdata;
-		}
-	}
+  npc->clk = 1;
+  npc->eval();
 }
 
 static void reset(int n) {
@@ -76,13 +63,13 @@ static void reset(int n) {
 int main() {
   nvboard_bind_all_pins(npc);
   nvboard_init();
-  load_program("test/addi_test.bin");
-  reset(10);
-
+  load_program("test/test.bin");
+  //reset(10);
+  int cycle = 0;
   while(1) {
     nvboard_update();
     single_cycle();
-    if(npc->PC == 0x10) break;
-
+    cycle++;
+    if(cycle == 20) break;
   }
 }
