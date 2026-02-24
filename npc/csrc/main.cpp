@@ -7,6 +7,25 @@ static uint32_t ROM[MEM_SIZE_WORDS];
 static uint32_t RAM[MEM_SIZE_WORDS];
 static TOP_NAME *npc = new TOP_NAME;
 
+static bool simulation_should_exit = false;
+extern "C" void sim_exit(){
+  simulation_should_exit = true;
+}
+extern "C" uint32_t pmem_read(uint32_t addr) {
+  return ROM[addr >> 2];
+}
+extern "C" void pmem_write(uint32_t addr, uint32_t data,int size) {
+  addr -= 0x80000000;
+  if(size == 4){
+    RAM[addr >> 2] = data;
+    printf("Write to RAM:%08x: %x\n", addr+0x80000000,data);
+  }
+  else if(size == 1){
+    RAM[addr >> 2] = (RAM[addr >> 2] & ~(0xff << (addr & 0b11))) | (data << (addr & 0b11));
+    printf("Write to RAM:%08x: %x\n", addr+0x80000000,data);
+  }
+}
+
 void nvboard_bind_all_pins(TOP_NAME* top);
 
 void load_program(const char* filename) {
@@ -36,20 +55,13 @@ void load_program(const char* filename) {
   std::cout << "Loaded " << word_count << " instructions from " << filename << std::endl;
 }
 
-void pmem_read(uint32_t addr){
-  if (addr < 0x80000000) {
-    npc->imem_rdata = ROM[addr >> 2];
-  } else {
-    npc->dmem_rdata = RAM[(addr - 0x80000000) >> 2];
-  }
-}
+
 
 
 static void single_cycle() {
   npc->clk = 0;
   npc->eval();
-  pmem_read(npc->imem_addr);
-
+  npc->imem_rdata = ROM[npc->imem_addr >> 2];
   npc->clk = 1;
   npc->eval();
 }
@@ -70,6 +82,10 @@ int main() {
     nvboard_update();
     single_cycle();
     cycle++;
+    if(simulation_should_exit) {
+      std::cout << "Simulation exited at cycle " << cycle << std::endl;
+      break;
+    }
     if(cycle == 20) break;
   }
 }

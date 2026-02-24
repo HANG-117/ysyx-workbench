@@ -5,14 +5,8 @@ module NPC(
     
     output imem_valid,
     output [31:0] imem_addr,
-    input [31:0] imem_rdata,
+    input [31:0] imem_rdata
     
-    output dmem_valid,
-    output dmem_write,
-    output dmem_addr,
-    output [31:0] dmem_wdata,
-    output [3:0] dmem_wstrb,
-    input [31:0] dmem_rdata
     
 
 );
@@ -28,6 +22,13 @@ module NPC(
     logic [6:0] funct7;
     logic [31:0] imm;
 
+
+    logic [31:0] alu_data1;
+    logic [31:0] alu_data2;
+    logic [2:0] alu_option;
+    logic [31:0] alu_result;
+    
+    
     logic [4:0] reg_raddr1;
     logic [4:0] reg_raddr2;
     logic [31:0] reg_rdata1;
@@ -36,10 +37,13 @@ module NPC(
     logic [4:0] reg_waddr;
     logic reg_wen;
 
-    logic [31:0] alu_data1;
-    logic [31:0] alu_data2;
-    logic [2:0] alu_option;
-    logic [31:0] alu_result;
+    logic [31:0] dmem_wdata;
+    logic [31:0] dmem_addr;
+    logic [31:0] dmem_rdata;
+    logic dmem_write;
+    logic [31:0]dmem_bytes;
+
+    logic ebreak;
 
     always @(posedge clk) begin
         $display("PC: 0x%08x, inst: 0x%08x", PC, inst);
@@ -81,10 +85,17 @@ module NPC(
         .reg_waddr(reg_waddr),
         .reg_wen(reg_wen),
         .reg_wdata(reg_wdata),
+        .dmem_rdata(dmem_rdata),
+        .dmem_wdata(dmem_wdata),
+        .dmem_addr(dmem_addr),
+        .dmem_write(dmem_write),
+        .dmem_bytes(dmem_bytes),
+
         .alu_result(alu_result),
         .alu_data1(alu_data1),
         .alu_data2(alu_data2),
         .alu_option(alu_option),
+        .ebreak(ebreak),
         .PC_branch(PC_branch),
         .pc_jump(pc_jump)
     );
@@ -95,19 +106,31 @@ module NPC(
         .alu_option(alu_option),
         .result(alu_result)
     );
+    
+    LSU lsu(
+        .clk(clk),
+        .dmem_write(dmem_write),
+        .dmem_addr(dmem_addr),
+        .dmem_wdata(dmem_wdata),
+        .dmem_rdata(dmem_rdata),
+        .dmem_bytes(dmem_bytes)
+    );
 
     WBU wbu(
         .clk(clk),
         .rst(rst),
         .opcode(opcode),
+        .funct3(funct3),
         .alu_result(alu_result),
         .reg_wdata(reg_wdata),
         .reg_wen(reg_wen),
         .reg_waddr(reg_waddr),
+        .dmem_rdata(dmem_rdata),
         .imm(imm),
         .pc_branch(PC_branch),
         .pc_jump(pc_jump),
-        .PC(PC)
+        .PC(PC),
+        .ebreak(ebreak)
     );
 
 endmodule

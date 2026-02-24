@@ -9,5 +9,6 @@ module IFU(
     assign inst = imem_rdata;
     assign imem_addr = PC;
 
+    
 
 endmodule

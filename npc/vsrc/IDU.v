@@ -21,7 +21,14 @@ module IDU(
     output [2:0] alu_option,
     output [31:0] reg_wdata,
     
-    
+    output dmem_write,
+    output [31:0] dmem_addr,
+    output [31:0] dmem_wdata,
+    output [31:0] dmem_bytes,
+    input  [31:0] dmem_rdata,
+
+
+    output ebreak,
     output [31:0] PC_branch,
     output pc_jump
 );
@@ -33,7 +40,7 @@ module IDU(
     assign rs1 = inst[19:15];
     assign rs2 = inst[24:20];
     assign funct7 = inst[31:25];
-    assign imm = (opcode == 7'b0010011 || opcode == 7'b1100111) ? {{20{inst[31]}}, inst[31:20]} : 
+    assign imm = (opcode == 7'b0010011 || opcode == 7'b1100111 || opcode == 7'b0000011) ? {{20{inst[31]}}, inst[31:20]} : 
                  (opcode == 7'b0110111) ? {{inst[31:12]}, 12'b0} : 32'b0;
 
     assign reg_raddr1 = rs1;
@@ -41,13 +48,22 @@ module IDU(
     assign reg_waddr = rd;
     
 
-    assign alu_data1 = (opcode == 7'b0010011 || opcode == 7'b1100111 || opcode == 7'b0110011) ? reg_rdata1 : 32'b0;
-    assign alu_data2 = (opcode == 7'b0010011 || opcode == 7'b1100111) ? imm : 
+    assign alu_data1 = (opcode == 7'b0010011 || opcode == 7'b1100111 || opcode == 7'b0110011 || opcode == 7'b0000011 || opcode == 7'b0100011) ? reg_rdata1 : 32'b0;
+    assign alu_data2 = (opcode == 7'b0010011 || opcode == 7'b1100111 || opcode == 7'b0000011 || opcode == 7'b0100011) ? imm : 
                        (opcode == 7'b0110011) ? reg_rdata2 : 32'b0;
     assign alu_option = (opcode == 7'b0010011) ? ((funct3 == 3'b000) ? 3'b000 : 3'b111) :
                         (opcode == 7'b1100111) ? ((funct3 == 3'b000) ? 3'b000 : 3'b111) :
-                        (opcode == 7'b0110011) ? ((funct3 == 3'b000) ? 3'b000 : 3'b111) : 3'b111;
+                        (opcode == 7'b0110011) ? ((funct3 == 3'b000) ? 3'b000 : 3'b111) : 
+                        (opcode == 7'b0000011) ? 3'b000 : 3'b111;
 
     assign pc_jump = (opcode == 7'b1100111) ? 1'b1 : 1'b0;
     assign PC_branch = (opcode == 7'b1100111) ? (alu_result & ~1) : 32'b0;
+
+    assign dmem_addr = (opcode == 7'b0000011 || opcode == 7'b0100011) ? alu_result : 32'b0;
+    assign dmem_bytes = (opcode == 7'b0000011) ?((funct3 == 3'b010) ? 32'b10 : 
+                                                 (funct3 == 3'b100) ? 32'b1 : 32'b0) : 32'b000;
+    assign dmem_write = (opcode == 7'b0100011) ? 1'b1 : 1'b0;
+    assign dmem_wdata = (opcode == 7'b0100011) ? reg_rdata2 : 32'b0;
+
+    assign ebreak = (inst == 32'h00100073) ? 1'b1 : 1'b0;
 endmodule

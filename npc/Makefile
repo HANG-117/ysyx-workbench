@@ -46,4 +46,13 @@ run: $(BIN)
 clean:
 	rm -rf $(BUILD_DIR)
 
-.PHONY: default all clean run
+test:
+	riscv64-unknown-elf-gcc \
+	-march=rv32i \
+	-mabi=ilp32 \
+	-nostdlib \
+	-T test/link.ld \
+	-o test/test.elf \
+	test/test.S
+	riscv64-unknown-elf-objcopy -O binary test/test.elf test/test.bin
+.PHONY: default all clean run test
