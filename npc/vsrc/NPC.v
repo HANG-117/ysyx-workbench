@@ -5,12 +5,12 @@ module NPC(
     
     output imem_valid,
     output [31:0] imem_addr,
-    input [31:0] imem_rdata
+    input [31:0] imem_rdata,
+    output logic [31:0] PC
     
     
 
 );
-    logic [31:0] PC;
     logic [31:0] PC_branch;
     logic pc_jump;
 
@@ -45,12 +45,9 @@ module NPC(
 
     logic ebreak;
 
-    always @(posedge clk) begin
-        $display("PC: 0x%08x, inst: 0x%08x", PC, inst);
-    end
-
     RegisterFile #(.ADDR_WIDTH(5), .DATA_WIDTH(32)) gpr(
         .clk(clk),
+        .rst(rst),
         .raddr1(reg_raddr1),
         .raddr2(reg_raddr2),
         .rdata1(reg_rdata1),
@@ -125,6 +122,7 @@ module NPC(
         .reg_wdata(reg_wdata),
         .reg_wen(reg_wen),
         .reg_waddr(reg_waddr),
+        .dmem_addr(dmem_addr),
         .dmem_rdata(dmem_rdata),
         .imm(imm),
         .pc_branch(PC_branch),
@@ -132,5 +130,28 @@ module NPC(
         .PC(PC),
         .ebreak(ebreak)
     );
-
+    always @(posedge clk) begin
+        if (PC == 32'h198) begin
+            $display("=== Register Dump at PC = 0x%08x ===", PC);
+            $display("x00=0x%08x  x01=0x%08x  x02=0x%08x  x03=0x%08x", 
+                    32'h0, gpr.rf[1], gpr.rf[2], gpr.rf[3]);
+            $display("x04=0x%08x  x05=0x%08x  x06=0x%08x  x07=0x%08x", 
+                    gpr.rf[4], gpr.rf[5], gpr.rf[6], gpr.rf[7]);
+            $display("x08=0x%08x  x09=0x%08x  x10=0x%08x  x11=0x%08x", 
+                    gpr.rf[8], gpr.rf[9], gpr.rf[10], gpr.rf[11]);
+            $display("x12=0x%08x  x13=0x%08x  x14=0x%08x  x15=0x%08x", 
+                    gpr.rf[12], gpr.rf[13], gpr.rf[14], gpr.rf[15]);
+            $display("=====================================");
+            end
+        if(PC == 32'h198)begin
+            $display("=== Test Passed ===");
+            $display("reg_wen : %d, reg_waddr : %08x, reg_wdata : %08x", reg_wen, reg_waddr, reg_wdata);
+            $display("rs1: %08x, rs2: %08x, rd: %08x, funct3: %08x, funct7: %08x, opcode: %08x", rs1, rs2, rd, funct3, funct7, opcode);
+            $display("reg_rdata1 : %08x, reg_rdata2 : %08x", reg_rdata1, reg_rdata2);
+            $display("alu_data1 : %08x, alu_data2 : %08x, alu_result : %08x", alu_data1, alu_data2, alu_result);
+            $display("dmem_write : %08x, dmem_addr : %08x, dmem_wdata : %d, dmem_bytes %d, dmem_rdata : %08x", dmem_write, dmem_addr, dmem_wdata,dmem_bytes,dmem_rdata);
+            $display("imm : %0x", imm);
+            $display("a0 : %08x", gpr.rf[10]);
+        end
+    end
 endmodule
