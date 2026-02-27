@@ -44,6 +44,9 @@ module NPC(
     logic [31:0]dmem_bytes;
 
     logic ebreak;
+    initial begin
+        PC = 32'h80000000;
+    end
 
     RegisterFile #(.ADDR_WIDTH(5), .DATA_WIDTH(32)) gpr(
         .clk(clk),

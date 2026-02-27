@@ -31,6 +31,7 @@ include $(NVBOARD_HOME)/scripts/nvboard.mk
 INCFLAGS = $(addprefix -I, $(INC_PATH))
 CXXFLAGS += $(INCFLAGS) -DTOP_NAME="\"V$(TOPNAME)\""
 
+
 $(BIN): $(VSRCS) $(CSRCS) $(NVBOARD_ARCHIVE)
 	@rm -rf $(OBJ_DIR)
 	$(VERILATOR) $(VERILATOR_CFLAGS) \
@@ -40,8 +41,12 @@ $(BIN): $(VSRCS) $(CSRCS) $(NVBOARD_ARCHIVE)
 
 all: default
 
+IMG ?= test/mem.bin
+
 run: $(BIN)
-	@$^
+	@echo "Running NPC with image: $(IMG)"
+	@$^ $(IMG)
+
 
 clean:
 	rm -rf $(BUILD_DIR)

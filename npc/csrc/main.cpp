@@ -3,7 +3,8 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
-#define MEM_SIZE_WORDS (1 << 22) 
+#define MEM_SIZE_WORDS (1 << 22)
+#define MEM_BASE 0x80000000 
 static uint32_t MEM[MEM_SIZE_WORDS];
 static TOP_NAME *npc = new TOP_NAME;
 int cycle = 0;
@@ -13,23 +14,23 @@ extern "C" void sim_exit(){
   simulation_should_exit = true;
 }
 extern "C" uint32_t pmem_read(uint32_t addr) {
-  if(addr >= MEM_SIZE_WORDS * 4) {
-    printf("Error: Memory access out of bounds: %08x\n",addr);
-    printf("cycle : %d",cycle);
+  uint16_t offset = addr - MEM_BASE;
+  if (offset >= MEM_SIZE_WORDS * 4) {
+    printf("Error: Physical address %08x out of bound!\n", addr);
     exit(1);
   }
-  
-  return MEM[addr >> 2];
+  return MEM[offset >> 2];
 }
 extern "C" void pmem_write(uint32_t addr, uint32_t data,int size) {
+  int offset = addr - MEM_BASE;
   if(size == 4){
-    MEM[addr >> 2] = data;
+    MEM[offset >> 2] = data;
     printf("%08xWrite to RAM:%08x: %x\n",npc->PC, addr,data);
   }
   else if(size == 1){
-    int shift = (addr & 0b11)*8;
-    MEM[addr >> 2] = (MEM[addr >> 2] & ~(0xffu << shift)) | ((data & 0xff) << shift);
-    printf("%08xWrite to RAM:%08x: %x\n",npc->PC, addr,data);
+    int shift = (offset & 0b11)*8;
+    MEM[offset >> 2] = (MEM[offset >> 2] & ~(0xffu << shift)) | ((data & 0xff) << shift);
+    printf("%08xWrite to RAM:%08x: %x\n",npc->PC, addr+MEM_BASE,data);
   }
 }
 
@@ -68,7 +69,7 @@ void load_program(const char* filename) {
 static void single_cycle() {
   npc->clk = 0;
   npc->eval();
-  npc->imem_rdata = MEM[npc->imem_addr >> 2];
+  npc->imem_rdata = pmem_read(npc->PC);
   printf("PC: %08x inst %08x\n", npc->PC, npc->imem_rdata);
   npc->clk = 1;
   npc->eval();
@@ -80,16 +81,21 @@ static void reset(int n) {
   npc->rst = 0;
 }
 
-int main() {
+int main(int argc, char** argv) {
   nvboard_bind_all_pins(npc);
   nvboard_init();
-  load_program("test/mem.bin");
+  npc->PC=0x80000000;
+  const char* img_file = "test/mem.bin";
+  if(argc >=2) {
+    img_file = argv[1];
+  };
+  load_program(img_file);
+  printf("PC:%08x\n",npc->imem_addr);
   reset(10);
   while(1) {
     nvboard_update();
     single_cycle();
     cycle++;
-    if(cycle == 7000) break;
     if(simulation_should_exit) {
       std::cout << "Simulation exited at cycle " << cycle << std::endl;
       break;
