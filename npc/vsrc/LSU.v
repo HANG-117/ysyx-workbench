@@ -11,7 +11,11 @@ module LSU(
     localparam MEM_SIZE = 32'h1000000;
     import "DPI-C" function int pmem_read(input int raddr);
     import "DPI-C" function void pmem_write(input int waddr, input int wdata, input int wmask);
-
+    always @(clk) begin
+        if (dmem_write) begin
+            pmem_write(dmem_addr, dmem_wdata, dmem_bytes);
+        end
+    end
     always @(*) begin
         if(dmem_addr > MEM_BASE + MEM_SIZE) begin
             $display("Error: Address out of range");
@@ -21,10 +25,6 @@ module LSU(
             dmem_rdata = pmem_read(dmem_addr);
         end
     end
-    always @(posedge clk) begin
-        if (dmem_write) begin
-            pmem_write(dmem_addr, dmem_wdata, dmem_bytes);
-        end
-    end
+    
 
 endmodule

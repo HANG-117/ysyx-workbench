@@ -15,7 +15,17 @@ void putch(char ch) {
 }
 
 void halt(int code) {
-  while (1);
+   __asm__ volatile (
+        ".long 0x00100073\n\t"  // ebreak
+        "j .\n\t"               // 原地跳转，防止 ebreak 被跳过
+    );
+
+    // 2. 防御性死循环
+    while (1);
+
+    // 3. 【关键修复】告诉编译器这里永远不可达
+    // 这消除了 "function does return" 的警告/错误
+    __builtin_unreachable();
 }
 
 void _trm_init() {

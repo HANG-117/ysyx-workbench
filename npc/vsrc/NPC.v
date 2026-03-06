@@ -6,11 +6,12 @@ module NPC(
     output imem_valid,
     output [31:0] imem_addr,
     input [31:0] imem_rdata,
-    output logic [31:0] PC
-    
+    output logic [31:0] PC,
+    output [31:0]a0
     
 
 );
+    assign a0 = gpr.rf[10];
     logic [31:0] PC_branch;
     logic pc_jump;
 
@@ -134,7 +135,7 @@ module NPC(
         .ebreak(ebreak)
     );
     always @(posedge clk) begin
-        if (PC == 32'h198) begin
+        if (PC == 32'h8000009c) begin
             $display("=== Register Dump at PC = 0x%08x ===", PC);
             $display("x00=0x%08x  x01=0x%08x  x02=0x%08x  x03=0x%08x", 
                     32'h0, gpr.rf[1], gpr.rf[2], gpr.rf[3]);
@@ -146,13 +147,13 @@ module NPC(
                     gpr.rf[12], gpr.rf[13], gpr.rf[14], gpr.rf[15]);
             $display("=====================================");
             end
-        if(PC == 32'h198)begin
+        if(PC == 32'h8000009c)begin
             $display("=== Test Passed ===");
             $display("reg_wen : %d, reg_waddr : %08x, reg_wdata : %08x", reg_wen, reg_waddr, reg_wdata);
             $display("rs1: %08x, rs2: %08x, rd: %08x, funct3: %08x, funct7: %08x, opcode: %08x", rs1, rs2, rd, funct3, funct7, opcode);
             $display("reg_rdata1 : %08x, reg_rdata2 : %08x", reg_rdata1, reg_rdata2);
             $display("alu_data1 : %08x, alu_data2 : %08x, alu_result : %08x", alu_data1, alu_data2, alu_result);
-            $display("dmem_write : %08x, dmem_addr : %08x, dmem_wdata : %d, dmem_bytes %d, dmem_rdata : %08x", dmem_write, dmem_addr, dmem_wdata,dmem_bytes,dmem_rdata);
+            $strobe("dmem_write : %08x, dmem_addr : %08x, dmem_wdata : %d, dmem_bytes %d, dmem_rdata : %08x", dmem_write, dmem_addr, dmem_wdata,dmem_bytes,dmem_rdata);
             $display("imm : %0x", imm);
             $display("a0 : %08x", gpr.rf[10]);
         end

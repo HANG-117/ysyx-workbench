@@ -13,14 +13,6 @@ static bool simulation_should_exit = false;
 extern "C" void sim_exit(){
   simulation_should_exit = true;
 }
-extern "C" uint32_t pmem_read(uint32_t addr) {
-  uint16_t offset = addr - MEM_BASE;
-  if (offset >= MEM_SIZE_WORDS * 4) {
-    printf("Error: Physical address %08x out of bound!\n", addr);
-    exit(1);
-  }
-  return MEM[offset >> 2];
-}
 extern "C" void pmem_write(uint32_t addr, uint32_t data,int size) {
   int offset = addr - MEM_BASE;
   if(size == 4){
@@ -30,9 +22,19 @@ extern "C" void pmem_write(uint32_t addr, uint32_t data,int size) {
   else if(size == 1){
     int shift = (offset & 0b11)*8;
     MEM[offset >> 2] = (MEM[offset >> 2] & ~(0xffu << shift)) | ((data & 0xff) << shift);
-    printf("%08xWrite to RAM:%08x: %x\n",npc->PC, addr+MEM_BASE,data);
+    printf("%08xWrite to RAM:%08x: %x\n",npc->PC, addr,data);
   }
 }
+extern "C" uint32_t pmem_read(uint32_t addr) {
+  uint32_t offset = addr - MEM_BASE;
+
+  if (offset >= MEM_SIZE_WORDS * 4) {
+    printf("Error: Physical address %08x out of bound!\n", addr);
+    return 0;
+  }
+  return MEM[offset >> 2];
+}
+
 
 void nvboard_bind_all_pins(TOP_NAME* top);
 
@@ -71,6 +73,7 @@ static void single_cycle() {
   npc->eval();
   npc->imem_rdata = pmem_read(npc->PC);
   printf("PC: %08x inst %08x\n", npc->PC, npc->imem_rdata);
+
   npc->clk = 1;
   npc->eval();
 }
@@ -97,8 +100,19 @@ int main(int argc, char** argv) {
     single_cycle();
     cycle++;
     if(simulation_should_exit) {
-      std::cout << "Simulation exited at cycle " << cycle << std::endl;
+      const char *COLOR_GREEN = "\033[1;32m"; // 绿色 (成功)
+      const char *COLOR_RED   = "\033[1;31m"; // 红色 (失败)
+      const char *COLOR_RESET = "\033[0m";  // 重置颜色 (非常重要，否则后面的输出也会变色)
+
+      if(npc->a0 == 0){
+          // 成功：绿色显示
+          printf("%shit good trap at %08x%s\n", COLOR_GREEN, npc->PC, COLOR_RESET);
+      }
+      else{
+          // 失败：红色显示
+          printf("%shit bad trap at %08x%s\n", COLOR_RED, npc->PC, COLOR_RESET);
+      }
       break;
-    }
+      }
   }
 }
