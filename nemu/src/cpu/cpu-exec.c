@@ -24,7 +24,32 @@
  * You can modify this value as you want.
  */
 #define MAX_INST_TO_PRINT 10
+#define IRINGBUF_SIZE 16
+static char iringbuf[IRINGBUF_SIZE][128];
+static int iringbuf_ptr = 0;
 
+void iringbuf_record(const char *log) {
+    strncpy(iringbuf[iringbuf_ptr], log, sizeof(iringbuf[0]) - 1);
+    iringbuf[iringbuf_ptr][sizeof(iringbuf[0]) - 1] = '\0';
+    iringbuf_ptr = (iringbuf_ptr + 1) % IRINGBUF_SIZE;
+}
+
+void iringbuf_print() {
+    printf("====== Instruction Ring Buffer (iringbuf) ======\n");
+    int i = iringbuf_ptr;
+    do {
+        if (iringbuf[i][0] != '\0') {
+            int is_last = ((i + 1) % IRINGBUF_SIZE == iringbuf_ptr);
+            if (is_last) {
+                printf("  --> %s\n", iringbuf[i]);
+            } else {
+                printf("      %s\n", iringbuf[i]);
+            }
+        }
+        i = (i + 1) % IRINGBUF_SIZE;
+    } while (i != iringbuf_ptr);
+    printf("================================================\n");
+}
 CPU_state cpu = {};
 uint64_t g_nr_guest_inst = 0;
 static uint64_t g_timer = 0; // unit: us
@@ -33,6 +58,7 @@ static bool g_print_step = false;
 void device_update();
 
 static void trace_and_difftest(Decode *_this, vaddr_t dnpc) {
+  IFDEF(CONFIG_ITRACE, iringbuf_record(_this->logbuf));
 #ifdef CONFIG_ITRACE_COND
   if (ITRACE_COND) { log_write("%s\n", _this->logbuf); }
 #endif
@@ -93,6 +119,7 @@ static void statistic() {
 }
 
 void assert_fail_msg() {
+  iringbuf_print();
   isa_reg_display();
   statistic();
 }
@@ -122,6 +149,9 @@ void cpu_exec(uint64_t n) {
            (nemu_state.halt_ret == 0 ? ANSI_FMT("HIT GOOD TRAP", ANSI_FG_GREEN) :
             ANSI_FMT("HIT BAD TRAP", ANSI_FG_RED))),
           nemu_state.halt_pc);
+          if (nemu_state.state == NEMU_ABORT || (nemu_state.state == NEMU_END && nemu_state.halt_ret != 0)) {
+          iringbuf_print();
+      }
       // fall through
     case NEMU_QUIT: statistic();
   }

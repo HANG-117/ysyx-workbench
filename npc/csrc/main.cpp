@@ -73,7 +73,10 @@ static void single_cycle() {
   npc->eval();
   npc->imem_rdata = pmem_read(npc->PC);
   printf("PC: %08x inst %08x\n", npc->PC, npc->imem_rdata);
-
+  if(npc->imem_rdata == 0x0000006f) {
+    printf("Encountered ecall at PC: %08x\n", npc->PC);
+    sim_exit();
+  }
   npc->clk = 1;
   npc->eval();
 }
