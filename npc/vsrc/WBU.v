@@ -42,7 +42,6 @@ module WBU(
 
      always @(posedge clk) begin
         if(ebreak) begin
-            $strobe("end simulation");
             sim_exit();
         end
         else if (rst) begin

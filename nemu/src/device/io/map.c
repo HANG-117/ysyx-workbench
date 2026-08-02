@@ -46,6 +46,15 @@ static void invoke_callback(io_callback_t c, paddr_t offset, int len, bool is_wr
   if (c != NULL) { c(offset, len, is_write); }
 }
 
+#if defined(CONFIG_DTRACE)
+static void dtrace_map_access(const char *op, IOMap *map, paddr_t addr, paddr_t offset, int len, word_t data) {
+  if (DTRACE_COND) {
+    Log("DTRACE %s [%s] addr=" FMT_PADDR " offset=" FMT_PADDR " len=%d data=" FMT_WORD,
+        op, map->name, addr, offset, len, data);
+  }
+}
+#endif
+
 void init_map() {
   io_space = malloc(IO_SPACE_MAX);
   assert(io_space);
@@ -58,6 +67,9 @@ word_t map_read(paddr_t addr, int len, IOMap *map) {
   paddr_t offset = addr - map->low;
   invoke_callback(map->callback, offset, len, false); // prepare data to read
   word_t ret = host_read(map->space + offset, len);
+#if defined(CONFIG_DTRACE)
+  dtrace_map_access("R", map, addr, offset, len, ret);
+#endif
   return ret;
 }
 
@@ -67,4 +79,7 @@ void map_write(paddr_t addr, int len, word_t data, IOMap *map) {
   paddr_t offset = addr - map->low;
   host_write(map->space + offset, len, data);
   invoke_callback(map->callback, offset, len, true);
+#if defined(CONFIG_DTRACE)
+  dtrace_map_access("W", map, addr, offset, len, data);
+#endif
 }

@@ -24,7 +24,7 @@ module IDU(
     output dmem_write,
     output [31:0] dmem_addr,
     output [31:0] dmem_wdata,
-    output [31:0] dmem_bytes,
+    output [2:0]  dmem_bytes,
     input  [31:0] dmem_rdata,
 
 
@@ -62,8 +62,8 @@ module IDU(
     assign PC_branch = (opcode == 7'b1100111) ? (alu_result & ~1) : 32'b0;
 
     assign dmem_addr = (opcode == 7'b0000011 || opcode == 7'b0100011) ? alu_result : 32'b0;
-    assign dmem_bytes = (opcode == 7'b0100011) ?((funct3 == 3'b010) ? 32'b100 : 
-                                                 ((funct3 == 3'b000) ? 32'b001 : 32'b0)) : 32'b000;
+    assign dmem_bytes = (opcode == 7'b0100011) ?((funct3 == 3'b010) ? 3'b100 : 
+                                                 ((funct3 == 3'b000) ? 3'b001 : 3'b0)) : 3'b000;
     assign dmem_write = (opcode == 7'b0100011) ? 1'b1 : 1'b0;
     assign dmem_wdata = (opcode == 7'b0100011) ? reg_rdata2 : 32'b0;
 

@@ -8,7 +8,6 @@ AM_SRCS := riscv/npc/start.S \
            platform/dummy/vme.c \
            platform/dummy/mpe.c
 
-NPC_HOME = /home/dream/ysyx-workbench/npc
 
 CFLAGS    += -fdata-sections -ffunction-sections
 LDSCRIPTS += $(AM_HOME)/scripts/linker.ld

@@ -13,26 +13,40 @@ static bool simulation_should_exit = false;
 extern "C" void sim_exit(){
   simulation_should_exit = true;
 }
-extern "C" void pmem_write(uint32_t addr, uint32_t data,int size) {
-  int offset = addr - MEM_BASE;
-  if(size == 4){
-    MEM[offset >> 2] = data;
-    printf("%08xWrite to RAM:%08x: %x\n",npc->PC, addr,data);
+extern "C" void pmem_write(int waddr, int wdata,int wmask) {
+  waddr = (uint32_t)((uint32_t)waddr - (uint32_t)MEM_BASE) >> 2;
+  if(wmask == 0b0001){
+    MEM[waddr] = (MEM[waddr] & 0xFFFFFF00) | (wdata & 0x000000FF);
   }
-  else if(size == 1){
-    int shift = (offset & 0b11)*8;
-    MEM[offset >> 2] = (MEM[offset >> 2] & ~(0xffu << shift)) | ((data & 0xff) << shift);
-    printf("%08xWrite to RAM:%08x: %x\n",npc->PC, addr,data);
+  else if(wmask == 0b0010){
+    MEM[waddr] = (MEM[waddr] & 0xFFFF00FF) | (wdata & 0x0000FF00);
+  }
+  else if(wmask == 0b0100){
+    MEM[waddr] = (MEM[waddr] & 0xFF00FFFF) | (wdata & 0x00FF0000);
+  }
+  else if(wmask == 0b1000){
+    MEM[waddr] = (MEM[waddr] & 0x00FFFFFF) | (wdata & 0xFF000000);
+  }
+  else if(wmask == 0b0011){
+    MEM[waddr] = (MEM[waddr] & 0xFFFF0000) | (wdata & 0x0000FFFF);
+  }
+  else if(wmask == 0b1100){
+    MEM[waddr] = (MEM[waddr] & 0x0000FFFF) | (wdata & 0xFFFF0000);
+  }
+  else if(wmask == 0b1111){
+    MEM[waddr] = wdata;
+  }
+  else{
+    std::cerr << "Error: Invalid write mask " << wmask << std::endl;
+    exit(1);
   }
 }
-extern "C" uint32_t pmem_read(uint32_t addr) {
-  uint32_t offset = addr - MEM_BASE;
-
-  if (offset >= MEM_SIZE_WORDS * 4) {
-    printf("Error: Physical address %08x out of bound!\n", addr);
-    return 0;
+extern "C" int pmem_read(int raddr) {
+  if ((uint32_t)raddr < MEM_BASE) {
+    return 0; 
   }
-  return MEM[offset >> 2];
+  raddr = (uint32_t)((uint32_t)raddr - (uint32_t)MEM_BASE) >> 2;
+  return MEM[raddr];
 }
 
 
@@ -115,4 +129,5 @@ int main(int argc, char** argv) {
       break;
       }
   }
+  
 }
