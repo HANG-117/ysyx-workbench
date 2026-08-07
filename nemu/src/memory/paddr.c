@@ -18,6 +18,30 @@
 #include <device/mmio.h>
 #include <isa.h>
 
+#ifdef CONFIG_MTRACE
+  #define MTRACE_BUG_SIZE 16
+  static char mtrace_buf[MTRACE_BUG_SIZE][128];
+  static int mtrace_head = 0;
+  static int mtrace_cnt = 0;
+
+  static void mtrace_push(const char *s){
+    snprintf(mtrace_buf[mtrace_head],128,"%s",s);
+    mtrace_head = (mtrace_head + 1) % MTRACE_BUG_SIZE;
+    if(mtrace_cnt < MTRACE_BUG_SIZE) mtrace_cnt++;
+  }
+
+  void mtrace_display(){
+    if(mtrace_cnt == 0) return;
+    printf("mtrace:\n");
+    int start = (mtrace_head + MTRACE_BUG_SIZE - mtrace_cnt) % MTRACE_BUG_SIZE;
+    int last = (mtrace_head - 1 + MTRACE_BUG_SIZE) % MTRACE_BUG_SIZE;
+    for(int i = 0; i < mtrace_cnt; i ++){
+      int idx = (start + i) % MTRACE_BUG_SIZE;
+      printf("%s%s\n", idx == last ? "--> " : "    ", mtrace_buf[idx]);
+    }
+  }
+#endif 
+
 #if   defined(CONFIG_PMEM_MALLOC)
 static uint8_t *pmem = NULL;
 #else // CONFIG_PMEM_GARRAY
@@ -51,13 +75,26 @@ void init_mem() {
 }
 
 word_t paddr_read(paddr_t addr, int len) {
+  #ifdef CONFIG_MTRACE
+    if(addr < CONFIG_MTRACE_START || addr > CONFIG_MTRACE_END) return 0;
+    char log[128];
+    snprintf(log, 128,"pc=" FMT_WORD ": " "paddr_read: addr = " FMT_PADDR ", len = %d", cpu.pc, addr, len);
+    mtrace_push(log);
+  #endif
   if (likely(in_pmem(addr))) return pmem_read(addr, len);
   IFDEF(CONFIG_DEVICE, return mmio_read(addr, len));
+  
   out_of_bound(addr);
   return 0;
 }
 
 void paddr_write(paddr_t addr, int len, word_t data) {
+  #ifdef CONFIG_MTRACE
+    if(addr < CONFIG_MTRACE_START || addr > CONFIG_MTRACE_END) return;
+    char log[128];
+    snprintf(log, 128,"pc=" FMT_WORD ": " "paddr_write: addr = " FMT_PADDR ", len = %d, data = " FMT_WORD, cpu.pc, addr, len, data);
+    mtrace_push(log);
+  #endif
   if (likely(in_pmem(addr))) { pmem_write(addr, len, data); return; }
   IFDEF(CONFIG_DEVICE, mmio_write(addr, len, data); return);
   out_of_bound(addr);

@@ -160,7 +160,20 @@ config DTRACE_COND
   string "Only trace device accesses when the condition is true"
   default "true"
 
+config MTRACE
+  bool "Enable memory tracer"
+  default n
 
+config MTRACE_START
+  depends on MTRACE
+  hex "the start address"
+  default 0x80000000
+
+config MTRACE_END
+  depends on MTRACE
+  hex "the end address"
+  default 0xffffffff
+  
 config DIFFTEST
   depends on TARGET_NATIVE_ELF
   bool "Enable differential testing"
