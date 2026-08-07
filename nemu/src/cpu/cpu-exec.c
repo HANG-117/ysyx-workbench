@@ -24,11 +24,42 @@
  * You can modify this value as you want.
  */
 #define MAX_INST_TO_PRINT 10
+#define IRINGBUF_SIZE 16
 
 CPU_state cpu = {};
 uint64_t g_nr_guest_inst = 0;
 static uint64_t g_timer = 0; // unit: us
 static bool g_print_step = false;
+
+#ifdef CONFIG_ITRACE
+static char iringbuf[IRINGBUF_SIZE][128];
+static int iringbuf_head = 0;
+static int iringbuf_cnt = 0;
+
+static void iringbuf_push(const char *s) {
+  strncpy(iringbuf[iringbuf_head], s, sizeof(iringbuf[iringbuf_head]) - 1);
+  iringbuf[iringbuf_head][sizeof(iringbuf[iringbuf_head]) - 1] = '\0';
+  iringbuf_head = (iringbuf_head + 1) % IRINGBUF_SIZE;
+  if (iringbuf_cnt < IRINGBUF_SIZE) {
+    iringbuf_cnt ++;
+  }
+}
+
+static void iringbuf_display(void) {
+  if (iringbuf_cnt == 0) {
+    return;
+  }
+
+  int start = (iringbuf_head - iringbuf_cnt + IRINGBUF_SIZE) % IRINGBUF_SIZE;
+  int last = (iringbuf_head - 1 + IRINGBUF_SIZE) % IRINGBUF_SIZE;
+
+  puts("The last several instructions before error:");
+  for (int i = 0; i < iringbuf_cnt; i ++) {
+    int idx = (start + i) % IRINGBUF_SIZE;
+    printf("%s%s\n", idx == last ? "--> " : "    ", iringbuf[idx]);
+  }
+}
+#endif
 
 void device_update();
 
@@ -69,6 +100,7 @@ static void exec_once(Decode *s, vaddr_t pc) {
   void disassemble(char *str, int size, uint64_t pc, uint8_t *code, int nbyte);
   disassemble(p, s->logbuf + sizeof(s->logbuf) - p,
       MUXDEF(CONFIG_ISA_x86, s->snpc, s->pc), (uint8_t *)&s->isa.inst, ilen);
+  iringbuf_push(s->logbuf);
 #endif
 }
 
@@ -94,6 +126,7 @@ static void statistic() {
 
 void assert_fail_msg() {
   isa_reg_display();
+  IFDEF(CONFIG_ITRACE, iringbuf_display());
   statistic();
 }
 
@@ -122,6 +155,7 @@ void cpu_exec(uint64_t n) {
            (nemu_state.halt_ret == 0 ? ANSI_FMT("HIT GOOD TRAP", ANSI_FG_GREEN) :
             ANSI_FMT("HIT BAD TRAP", ANSI_FG_RED))),
           nemu_state.halt_pc);
+      IFDEF(CONFIG_ITRACE, if (nemu_state.state == NEMU_ABORT || nemu_state.halt_ret != 0) iringbuf_display());
       // fall through
     case NEMU_QUIT: statistic();
   }
