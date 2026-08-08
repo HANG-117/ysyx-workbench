@@ -18,6 +18,7 @@
 #include <cpu/difftest.h>
 #include <locale.h>
 #include <../src/monitor/sdb/sdb.h>
+#include <../src/utils/ftrace.h>
 /* The assembly code of instructions executed is only output to the screen
  * when the number of instructions executed is less than this value.
  * This is useful when you use the `si' command.
@@ -79,6 +80,35 @@ static void exec_once(Decode *s, vaddr_t pc) {
   s->snpc = pc;
   isa_exec_once(s);
   cpu.pc = s->dnpc;
+
+  IFDEF(CONFIG_FTRACE, {
+    uint32_t inst = s->isa.inst;
+    uint32_t opcode = inst & 0x7f;
+    uint32_t rd     = (inst >> 7) & 0x1f;
+    uint32_t rs1    = (inst >> 15) & 0x1f;
+
+    if (opcode == 0x6f && rd == 1) {   // jal ra, offset
+      uint32_t imm = ((inst >> 31) << 20)
+                   | (((inst >> 12) & 0xff) << 12)
+                   | (((inst >> 20) & 0x1) << 11)
+                   | (((inst >> 21) & 0x3ff) << 1);
+      int32_t offset = (int32_t)(imm << 11) >> 11;
+      vaddr_t target = s->pc + offset;
+      ftrace_call(s->pc, target);
+    } else if (opcode == 0x67) {       // jalr
+      if (rd == 0 && rs1 == 1 && ((inst >> 20) & 0xfff) == 0) {
+        // ret 伪指令：jalr x0, ra, 0
+        ftrace_ret(s->pc, s->dnpc);    // 修改点：传入当前 PC 和返回目标
+      } else if (rd == 1) {
+        // jalr ra, rs1, offset（间接调用）
+        uint32_t imm = (inst >> 20) & 0xfff;
+        if (imm & 0x800) imm |= 0xfffff000;
+        vaddr_t target = (cpu.gpr[rs1] + (int32_t)imm) & ~(vaddr_t)1;
+        ftrace_call(s->pc, target);
+      }
+    }
+  });
+  
 #ifdef CONFIG_ITRACE
   char *p = s->logbuf;
   p += snprintf(p, sizeof(s->logbuf), FMT_WORD ":", s->pc);

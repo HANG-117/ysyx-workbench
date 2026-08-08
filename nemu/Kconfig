@@ -160,6 +160,10 @@ config DTRACE_COND
   string "Only trace device accesses when the condition is true"
   default "true"
 
+config FTRACE
+  bool "Enable function tracer"
+  default n
+
 config MTRACE
   bool "Enable memory tracer"
   default n

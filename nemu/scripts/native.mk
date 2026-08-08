@@ -26,6 +26,11 @@ $(BINARY):: compile_git
 override ARGS ?= --log=$(BUILD_DIR)/nemu-log.txt
 override ARGS += $(ARGS_DIFF)
 
+# 下面添加自动 ELF
+ELF ?= $(IMG:.bin=.elf)
+ifneq ($(wildcard $(ELF)),)
+  override ARGS += -e $(ELF)
+endif
 # Command to execute NEMU
 IMG ?=
 NEMU_EXEC := $(BINARY) $(ARGS) $(IMG)
