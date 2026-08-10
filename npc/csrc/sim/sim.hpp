@@ -5,6 +5,10 @@
 
 #include <VNPC.h>
 
+#include "difftest/difftest.hpp"
+
+class Difftest;
+
 // 仿真核心：持有 RTL 顶层实例，负责时钟 / 复位 / 单步推进。
 class Simulator {
 public:
@@ -14,8 +18,11 @@ public:
     // 复位 n 个时钟周期
     void reset(int n);
 
-    // 单个时钟周期（含 itrace / ftrace 输出）
+    // 单个时钟周期（含 itrace / ftrace 输出，以及 difftest 对比）
     void step();
+
+    // 挂载 difftest 对比器（必须在 reset 之前设置；reset 期间自动跳过对比）
+    void set_difftest(Difftest* difftest) { difftest_ = difftest; }
 
     bool exited() const { return should_exit_; }
     int exit_code() const { return exit_code_; }
@@ -27,6 +34,9 @@ public:
     uint32_t inst() const;            // 当前指令
     uint32_t reg(int idx) const;      // 通用寄存器 x[idx]
 
+    // 取 DUT 当前完整状态快照 (gpr[32] + pc)，供 difftest 使用
+    CPU_state snapshot() const;
+
     // 供 DPI-C 回调（sim_exit）使用：RTL 执行 ebreak 时触发
     void notify_exit(int pc, int a0);
 
@@ -36,6 +46,7 @@ private:
     bool should_exit_;
     int exit_pc_;
     int exit_code_;
+    Difftest* difftest_;   // 可选：逐指令对比器
 };
 
 #endif

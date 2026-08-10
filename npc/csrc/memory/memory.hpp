@@ -1,6 +1,7 @@
 #ifndef MEMORY_HPP
 #define MEMORY_HPP
 
+#include <cstddef>
 #include <cstdint>
 
 #include "common.hpp"
@@ -20,10 +21,17 @@ public:
     // 按字节使能掩码写：MMIO 串口输出 / RAM 写入
     void write(uint32_t addr, uint32_t data, uint32_t wmask);
 
+    // 客户物理地址 -> 宿主内存指针（未映射返回 nullptr），供 difftest 同步内存
+    uint8_t* host_addr(uint32_t guest_addr);
+
+    // 已加载镜像的大小（字节）
+    size_t image_size() const { return image_size_; }
+
 private:
     static uint64_t now_us();  // 自系统启动以来的微秒数
 
     uint64_t boot_time_us_;                 // RTC 基准时间
+    size_t image_size_ = 0;                 // 已加载镜像大小（字节）
     static uint32_t mem[MEM_SIZE_WORDS];    // 物理内存（1GiB BSS）
 };
 

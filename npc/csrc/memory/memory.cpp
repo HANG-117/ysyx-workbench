@@ -61,7 +61,15 @@ void Memory::load_image(const char* filename) {
     }
 
     delete[] buffer;
+    image_size_ = size;
     std::cout << "Loaded " << word_count << " instructions from " << filename << std::endl;
+}
+
+uint8_t* Memory::host_addr(uint32_t guest_addr) {
+    if (guest_addr < MEM_BASE || guest_addr >= (MEM_BASE + (MEM_SIZE_WORDS * 4))) {
+        return nullptr;
+    }
+    return (uint8_t*)mem + (guest_addr - MEM_BASE);
 }
 
 uint32_t Memory::read(uint32_t addr) {

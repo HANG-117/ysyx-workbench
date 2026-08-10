@@ -19,7 +19,8 @@ Simulator::Simulator()
       cycle_(0),
       should_exit_(false),
       exit_pc_(0),
-      exit_code_(0) {
+      exit_code_(0),
+      difftest_(nullptr) {
     if (g_sim == nullptr) {
         g_sim = this;
     }
@@ -56,12 +57,17 @@ void Simulator::reset(int n) {
 }
 
 void Simulator::step() {
+    // 记录本条指令执行前的状态（difftest 需要）
+    uint32_t pc_before = pc();
+    uint32_t inst_before = inst();
+    CPU_state pre = snapshot();
+
     top_->clk = 0;
     top_->eval();
     top_->clk = 1;
     top_->eval();
     if (should_exit_) {
-        return;
+        return;  // 本条指令是 ebreak，不做 difftest 对比
     }
 
     if (ITRACE) {
@@ -76,6 +82,10 @@ void Simulator::step() {
     if (FTRACE) {
         ftrace_check(pc(), inst(), reg(1));
     }
+
+    if (difftest_) {
+        difftest_->step(pre, snapshot(), inst_before);
+    }
 }
 
 uint32_t Simulator::pc() const {
@@ -88,4 +98,14 @@ uint32_t Simulator::inst() const {
 
 uint32_t Simulator::reg(int idx) const {
     return top_->NPC__DOT__regfile_inst__DOT__rf[idx];
+}
+
+CPU_state Simulator::snapshot() const {
+    CPU_state s{};
+    for (int i = 0; i < 32; i++) {
+        s.gpr[i] = reg(i);
+    }
+    s.gpr[0] = 0;  // x0 硬连线为 0
+    s.pc = pc();
+    return s;
 }

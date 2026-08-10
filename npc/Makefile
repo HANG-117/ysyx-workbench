@@ -26,19 +26,32 @@ DEFS = $(abspath ./vsrc)/core_defs.sv
 VSRCS = $(filter-out $(DEFS), $(shell find $(abspath ./vsrc) -name "*.sv"))
 CSRCS = $(shell find $(abspath ./csrc) -name "*.c" -or -name "*.cc" -or -name "*.cpp")
 CSRCS += $(SRC_AUTO_BIND)
+# 头文件也纳入依赖：修改 .hpp/.h 会触发重编
+HDRS = $(shell find $(abspath ./csrc) -name "*.h" -or -name "*.hpp")
 
 # rules for NVBoard
 include $(NVBOARD_HOME)/scripts/nvboard.mk
 
 # rules for verilator
-INCFLAGS = $(addprefix -I, $(INC_PATH) $(abspath ./csrc))
+INCFLAGS = $(addprefix -I, $(INC_PATH) $(abspath ./csrc) $(abspath $(BUILD_DIR)))
 CXXFLAGS += $(INCFLAGS) -DTOP_NAME="\"V$(TOPNAME)\""
 
+# difftest 参考模型 (NEMU) 动态库路径：生成到头文件供源码引用，
+# 运行时可用环境变量 NPC_REF_SO 覆盖。
+REF_SO ?= $(abspath ../nemu/build/riscv32-nemu-interpreter-so)
+REF_SO_HDR = $(abspath $(BUILD_DIR)/ref_so_path.h)
+$(REF_SO_HDR):
+	@echo '#pragma once' > $@
+	@echo '#define REF_SO_PATH "$(REF_SO)"' >> $@
 
-$(BIN): $(VSRCS) $(CSRCS) $(NVBOARD_ARCHIVE)
+# dlopen 需要
+LDFLAGS += -ldl
+
+
+$(BIN): $(VSRCS) $(CSRCS) $(HDRS) $(NVBOARD_ARCHIVE) $(REF_SO_HDR)
 	@rm -rf $(OBJ_DIR)
 	$(VERILATOR) $(VERILATOR_CFLAGS) \
-		--top-module $(TOPNAME) $^ \
+		--top-module $(TOPNAME) $(filter-out $(REF_SO_HDR) $(HDRS), $^) \
 		+incdir+$(abspath ./vsrc) \
 		$(addprefix -CFLAGS , $(CXXFLAGS)) $(addprefix -LDFLAGS , $(LDFLAGS)) \
 		--Mdir $(OBJ_DIR) --exe -o $(abspath $(BIN))

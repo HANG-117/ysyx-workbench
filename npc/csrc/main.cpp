@@ -2,6 +2,7 @@
 #include <string>
 
 #include "common.hpp"
+#include "difftest/difftest.hpp"
 #include "memory/memory.hpp"
 #include "monitor/monitor.hpp"
 #include "sim/sim.hpp"
@@ -24,7 +25,7 @@ int main(int argc, char** argv) {
         }
     }
 
-    // ---- 初始化：内存 -> 追踪 -> 仿真器 ----
+    // ---- 初始化：内存 -> 仿真器 -> difftest -> 监视器 ----
     Memory memory;  // 物理内存 + MMIO（构造时记录 RTC 基准时间）
     memory.load_image(img_file);
 
@@ -33,7 +34,14 @@ int main(int argc, char** argv) {
     }
 
     Simulator sim;
+    Difftest difftest(sim, memory);
+    sim.set_difftest(&difftest);
     sim.reset(10);
+
+    // 复位完成后启用 difftest（复位期间不参与对比）
+    if (!difftest.init()) {
+        std::cerr << "difftest: init failed, running WITHOUT reference model" << std::endl;
+    }
 
     // ---- 进入交互式监视器 ----
     Monitor monitor(sim, memory);
