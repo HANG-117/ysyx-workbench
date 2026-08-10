@@ -1,4 +1,7 @@
-#include "common.hpp"
+#include <sstream>
+#include <string>
+
+#include "trace/trace.hpp"
 
 std::string disassemble_rv32e(uint32_t instr, uint32_t pc) {
     // 提取字段
