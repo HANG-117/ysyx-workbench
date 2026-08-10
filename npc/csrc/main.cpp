@@ -6,16 +6,7 @@
 #include <sys/time.h> // 用于高精度 RTC 时间获取
 #include "common.hpp"
 
-#define MEM_SIZE_WORDS (1 << 28) // 256MB 内存
-#define MEM_BASE       0x80000000U 
 
-// MMIO 地址映射
-#define SERIAL_PORT    0x10000000U  // 串口地址 (SoC 兼容)
-#define RTC_ADDR_LOW   0xa0000048U  // RTC 时间低 32 位
-#define RTC_ADDR_HIGH  0xa000004cU  // RTC 时间高 32 位
-
-
-#define MAX_CYCLES     100000
 
 static uint32_t MEM[MEM_SIZE_WORDS];
 static TOP_NAME *npc = new TOP_NAME;
@@ -48,6 +39,9 @@ static uint64_t boot_time = 0;
 
 // ------------------- MMIO 内存写 -------------------
 extern "C" void pmem_write(int waddr, int wdata, int wmask) {
+    if(MTRACE){
+        mtrace_write((uint32_t)waddr, (uint32_t)wdata);
+    }
     uint32_t addr = (uint32_t)waddr;
   if (addr == 0x10000000U) {
       char ch = (char)(wdata & 0xFF);
@@ -144,11 +138,19 @@ static void single_cycle() {
     npc->clk = 1;
     npc->eval();
     if(simulation_should_exit) return;
+    if(ITRACE){
     std::cout<< "Cycle: " << std::dec << cycle << ", PC: 0x" << std::hex << npc->NPC__DOT__ifu_inst__DOT__pc_reg_inst__DOT__pc 
         << ", Instruction: 0x" << std::hex << npc->NPC__DOT__inst 
         << ", Disassembly: " << disassemble_rv32e(npc->NPC__DOT__inst, npc->NPC__DOT__ifu_inst__DOT__pc_reg_inst__DOT__pc) 
         << std::endl;
+    }
     cycle++;
+    uint32_t pc = npc->NPC__DOT__ifu_inst__DOT__pc_reg_inst__DOT__pc;
+    uint32_t inst = npc->NPC__DOT__inst;
+    uint32_t ret_addr =npc->NPC__DOT__regfile_inst__DOT__rf[1];
+    if(FTRACE){
+        ftrace_check(pc, inst, ret_addr);
+    }
 }
 
 static void reset(int n) {
@@ -161,11 +163,23 @@ int main(int argc, char** argv) {
     using namespace std;
     boot_time = get_time_us(); // 记录系统启动基准时间
     const char* img_file = "test/mem.bin";
+    std::string elf_file; // 默认 ELF 文件名
     if (argc >= 2) {
         img_file = argv[1];
+        if(FTRACE){
+            std::string img_str = argv[1];
+            size_t dot_pos = img_str.find_last_of('.');
+            if (dot_pos != std::string::npos) {
+                elf_file = img_str.substr(0, dot_pos) + ".elf";
+            } else {
+                elf_file = img_str + ".elf";
+            }
+        }
     }
     load_program(img_file);
-
+    if(FTRACE && !elf_file.empty()){
+        ftrace_init(elf_file);
+    }
     reset(10);
 
     while (1) {
