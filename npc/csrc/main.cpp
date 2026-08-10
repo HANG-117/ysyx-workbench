@@ -4,6 +4,7 @@
 #include <fstream>
 #include <sstream>
 #include <sys/time.h> // 用于高精度 RTC 时间获取
+#include "common.hpp"
 
 #define MEM_SIZE_WORDS (1 << 28) // 256MB 内存
 #define MEM_BASE       0x80000000U 
@@ -25,7 +26,7 @@ extern "C" void sim_exit(int pc, int a0) {
     simulation_should_exit = true;
     if (a0 != 0) {
         // 红色输出
-        std::cerr << "\033[31m" 
+        std::cout << "\033[31m" 
                   << "Simulation exited with error code: " << a0 
                   << "\033[0m" << std::endl;
     } else {
@@ -140,9 +141,13 @@ void load_program(const char* filename) {
 static void single_cycle() {
     npc->clk = 0;
     npc->eval();
-
     npc->clk = 1;
     npc->eval();
+    if(simulation_should_exit) return;
+    std::cout<< "Cycle: " << std::dec << cycle << ", PC: 0x" << std::hex << npc->NPC__DOT__ifu_inst__DOT__pc_reg_inst__DOT__pc 
+        << ", Instruction: 0x" << std::hex << npc->NPC__DOT__inst 
+        << ", Disassembly: " << disassemble_rv32e(npc->NPC__DOT__inst, npc->NPC__DOT__ifu_inst__DOT__pc_reg_inst__DOT__pc) 
+        << std::endl;
     cycle++;
 }
 
@@ -173,6 +178,7 @@ int main(int argc, char** argv) {
                 cin >> num;
                 for(int i = 0;i<num;i++){
                     single_cycle();
+                    if(simulation_should_exit) break;
                 }
                 break;
             case 'm':
@@ -204,7 +210,7 @@ int main(int argc, char** argv) {
             default:
                 std::cout << "Unknown command. Use 's' to step, 'q' to quit." << std::endl;
         }
-        if(cycle >= MAX_CYCLES) 
+        if(cycle >= MAX_CYCLES) break;
         if(simulation_should_exit) break;
     }
     return 0;
