@@ -15,21 +15,30 @@ module EXU(
     output logic [31:0] next_pc_o        // 计算出的下一条 PC
 );
 
-    // 立即数扩展：指令所需立即数
+    // 立即数扩展：按完整 opcode 分发（U-type/B-type 无法用 inst[6:5] 区分）
     logic [31:0] imm;
     always_comb begin
-        case (inst_i[6:5])
-            2'b00: imm = {{20{inst_i[31]}}, inst_i[31:20]};              // I-type
-            2'b01: imm = {{20{inst_i[31]}}, inst_i[31:25], inst_i[11:7]}; // S-type
-            2'b10: imm = {{20{inst_i[31]}}, inst_i[7], inst_i[30:25],
-                          inst_i[11:8], 1'b0};                            // B-type
-            2'b11: begin
-                if (inst_i[3])
-                    imm = {{12{inst_i[31]}}, inst_i[19:12], inst_i[20],
-                           inst_i[30:21], 1'b0};                          // J-type (JAL)
-                else
-                    imm = {{20{inst_i[31]}}, inst_i[31:20]};              // I-type (JALR)
-            end
+        case (inst_i[6:0])
+            // I-type: OP-IMM / LOAD / JALR / SYSTEM
+            7'b0010011, 7'b0000011, 7'b1100111, 7'b1110011:
+                imm = {{20{inst_i[31]}}, inst_i[31:20]};
+            // S-type: STORE
+            7'b0100011:
+                imm = {{20{inst_i[31]}}, inst_i[31:25], inst_i[11:7]};
+            // B-type: BRANCH
+            7'b1100011:
+                imm = {{20{inst_i[31]}}, inst_i[7], inst_i[30:25],
+                       inst_i[11:8], 1'b0};
+            // J-type: JAL
+            7'b1101111:
+                imm = {{12{inst_i[31]}}, inst_i[19:12], inst_i[20],
+                       inst_i[30:21], 1'b0};
+            // U-type: LUI / AUIPC
+            7'b0110111, 7'b0010111:
+                imm = {inst_i[31:12], 12'b0};
+            // R-type 及其它：不使用立即数
+            default:
+                imm = 32'b0;
         endcase
     end
 
