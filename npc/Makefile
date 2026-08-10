@@ -1,6 +1,6 @@
 TOPNAME = NPC
 NXDC_FILES = constr/top.nxdc
-INC_PATH ?=
+INC_PATH ?= 
 
 VERILATOR = verilator
 VERILATOR_CFLAGS += -MMD --build -cc  \
@@ -20,7 +20,10 @@ $(SRC_AUTO_BIND): $(NXDC_FILES)
 	python3 $(NVBOARD_HOME)/scripts/auto_pin_bind.py $^ $@
 
 # project source
-VSRCS = $(shell find $(abspath ./vsrc) -name "*.sv")
+# core_defs.sv 是纯宏头文件，不作为独立编译单元参与编译，
+# 仅通过 +incdir+vsrc 被各模块 `include 解析。
+DEFS = $(abspath ./vsrc)/core_defs.sv
+VSRCS = $(filter-out $(DEFS), $(shell find $(abspath ./vsrc) -name "*.sv"))
 CSRCS = $(shell find $(abspath ./csrc) -name "*.c" -or -name "*.cc" -or -name "*.cpp")
 CSRCS += $(SRC_AUTO_BIND)
 
@@ -36,6 +39,7 @@ $(BIN): $(VSRCS) $(CSRCS) $(NVBOARD_ARCHIVE)
 	@rm -rf $(OBJ_DIR)
 	$(VERILATOR) $(VERILATOR_CFLAGS) \
 		--top-module $(TOPNAME) $^ \
+		+incdir+$(abspath ./vsrc) \
 		$(addprefix -CFLAGS , $(CXXFLAGS)) $(addprefix -LDFLAGS , $(LDFLAGS)) \
 		--Mdir $(OBJ_DIR) --exe -o $(abspath $(BIN))
 
@@ -63,3 +67,4 @@ test:
 convert:
 	tail -n +2 test/mem.hex | sed -e 's/.*: //' -e 's/ /\n/g' | sed -e 's/\(..\)\(..\)\(..\)\(..\)/\4 \3 \2 \1/' | xxd -r -p > test/mem.bin
 .PHONY: default all clean run test
+

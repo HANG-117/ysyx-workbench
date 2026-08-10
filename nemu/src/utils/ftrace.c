@@ -36,7 +36,6 @@ void init_ftrace(const char *elf_path) {
 
     int fd = open(elf_path, O_RDONLY);
     Assert(fd != -1, "Cannot open '%s'", elf_path);
-
     struct stat st;
     fstat(fd, &st);
     void *map = mmap(NULL, st.st_size, PROT_READ, MAP_PRIVATE, fd, 0);

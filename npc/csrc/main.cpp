@@ -13,13 +13,27 @@
 #define RTC_ADDR_LOW   0xa0000048U  // RTC 时间低 32 位
 #define RTC_ADDR_HIGH  0xa000004cU  // RTC 时间高 32 位
 
+
+#define MAX_CYCLES     100000
+
 static uint32_t MEM[MEM_SIZE_WORDS];
 static TOP_NAME *npc = new TOP_NAME;
 int cycle = 0;
 
 static bool simulation_should_exit = false;
-extern "C" void sim_exit() {
+extern "C" void sim_exit(int pc, int a0) {
     simulation_should_exit = true;
+    if (a0 != 0) {
+        // 红色输出
+        std::cerr << "\033[31m" 
+                  << "Simulation exited with error code: " << a0 
+                  << "\033[0m" << std::endl;
+    } else {
+        // 绿色输出
+        std::cout << "\033[32m" 
+                  << "HIT GOOD TRAP at pc = 0x" << std::hex << pc 
+                  << "\033[0m" << std::endl;
+    }
 }
 
 // 辅助函数：获取系统初始启动后的微秒数
@@ -124,17 +138,12 @@ void load_program(const char* filename) {
 }
 
 static void single_cycle() {
-    npc->imem_rdata = pmem_read(npc->PC);
     npc->clk = 0;
     npc->eval();
 
-    // 如果遇到 EBREAK 或自陷指令退出
-    if (pmem_read(npc->PC) == 0x00100073) {
-        simulation_should_exit = true;
-    }
-
     npc->clk = 1;
     npc->eval();
+    cycle++;
 }
 
 static void reset(int n) {
@@ -144,9 +153,8 @@ static void reset(int n) {
 }
 
 int main(int argc, char** argv) {
+    using namespace std;
     boot_time = get_time_us(); // 记录系统启动基准时间
-    npc->PC = MEM_BASE;
-
     const char* img_file = "test/mem.bin";
     if (argc >= 2) {
         img_file = argv[1];
@@ -156,22 +164,48 @@ int main(int argc, char** argv) {
     reset(10);
 
     while (1) {
-        single_cycle();
-        cycle++;
-
-        if (simulation_should_exit) {
-            const char *COLOR_GREEN = "\033[1;32m";
-            const char *COLOR_RED   = "\033[1;31m";
-            const char *COLOR_RESET = "\033[0m";
-
-            if (npc->a0 == 0) {
-                printf("%shit good trap at %08x%s\n", COLOR_GREEN, npc->PC, COLOR_RESET);
-            } else {
-                printf("%shit bad trap at %08x%s\n", COLOR_RED, npc->PC, COLOR_RESET);
-                printf("a0: %08x\n", npc->a0);
-            }
-            break;
+        char choice;
+        cin >> choice;
+        switch (choice) {
+            case 's':
+                cout << "请输入需要前进的周期数"<<endl;
+                int num;
+                cin >> num;
+                for(int i = 0;i<num;i++){
+                    single_cycle();
+                }
+                break;
+            case 'm':
+                std::cout << "Enter address to read: ";
+                uint32_t addr;
+                cin >> std::hex >> addr;
+                for(int i = -4; i < 5; i++) {
+                    cout << "0x" << std::hex << (addr + i * 4) << ": 0x" 
+                         << std::hex << pmem_read(addr + i * 4) << std::endl;
+                }
+                break;
+            case 'c':
+                while (true) {
+                    single_cycle();
+                    if(simulation_should_exit) break;
+                }
+                break;
+            case 'p':
+                cout<< "=======当前寄存器信息=======" << endl;
+                for(int i = 0; i < 32; i++) {
+                    cout << "x" << std::dec << i << ": 0x" 
+                         << std::hex << npc->NPC__DOT__regfile_inst__DOT__rf[i];
+                    if(i % 4 == 3) cout << endl;
+                    else cout << "\t";
+                }
+                break;
+            case 'q':
+                return 0;
+            default:
+                std::cout << "Unknown command. Use 's' to step, 'q' to quit." << std::endl;
         }
+        if(cycle >= MAX_CYCLES) 
+        if(simulation_should_exit) break;
     }
     return 0;
 }
