@@ -29,7 +29,6 @@ bool cte_init(Context*(*handler)(Event, Context*)) {
 
   return true;
 }
-
 Context *kcontext(Area kstack, void (*entry)(void *), void *arg) {
   return NULL;
 }
@@ -47,4 +46,5 @@ bool ienabled() {
 }
 
 void iset(bool enable) {
+  
 }

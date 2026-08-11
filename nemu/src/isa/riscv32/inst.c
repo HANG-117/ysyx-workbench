@@ -120,12 +120,31 @@ static int decode_exec(Decode *s) {
   INSTPAT("??????? ????? ????? 110 ????? 11000 11", bltu   , B, if (src1 < src2) s->dnpc = s->pc + imm);
   INSTPAT("??????? ????? ????? 100 ????? 11000 11", blt    , B, if ((int32_t)src1 < (int32_t)src2) s->dnpc = s->pc + imm);
   INSTPAT("0000000 00001 00000 000 00000 11100 11", ebreak , N, NEMUTRAP(s->pc, R(10))); // R(10) is $a0
-  INSTPAT("??????? ????? ????? ??? ????? ????? ??", inv    , N, INV(s->pc));
   INSTPAT("0000000 00000 00000 000 00000 11100 11", ecall, N, 
-      if (R(17) == 93) { // 93 是 exit 系统调用号
-          NEMUTRAP(s->pc, R(10)); // R(10) 是 exit code
+      s->dnpc = isa_raise_intr(11, s->pc)
+      
+  );
+  // csrrw 通用实现（imm 中存的是 CSR 编号）
+  INSTPAT("????? ???? ???? ????? 001 ????? 11100 11", csrrw, I, 
+    switch (imm) {
+        case 0x305: cpu.mtvec = src1; break;   // mtvec
+        case 0x341: cpu.mepc  = src1; break;   // mepc
+        case 0x300: cpu.mstatus = src1; break;  // mstatus
+        case 0x342: cpu.mcause = src1; break;   // mcause
+        default: panic("unsupported csr = 0x%x", imm);
+    }
+  );
+  // csrrs/csrr：读 CSR 到 rd
+  INSTPAT("????? ???? ???? ????? 010 ????? 11100 11", csrrs, I, 
+      switch (imm) {
+          case 0x305: R(rd) = cpu.mtvec;   break;  // mtvec
+          case 0x341: R(rd) = cpu.mepc;    break;  // mepc
+          case 0x300: R(rd) = cpu.mstatus; break;  // mstatus
+          case 0x342: R(rd) = cpu.mcause;  break;  // mcause
+          default: panic("unsupported csr read 0x%x", imm);
       }
   );
+  INSTPAT("??????? ????? ????? ??? ????? ????? ??", inv    , N, INV(s->pc));
   INSTPAT_END();
 
   R(0) = 0; // reset $zero to 0

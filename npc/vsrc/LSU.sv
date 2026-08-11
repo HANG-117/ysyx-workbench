@@ -14,10 +14,22 @@ import "DPI-C" function void pmem_write(input int addr, input int data, input in
 import "DPI-C" function int pmem_read(input int addr);
 
 logic [31:0] rdata;
+logic [31:0] store_data;   // 按地址偏移对齐后的写数据
 logic [3:0] wmask;
 
 always_comb begin
     rdata = pmem_read(int'(addr_i & 32'hfffffffc));
+end
+
+// 写数据对齐：RISC-V 中 sb/sh 写入的是寄存器的低 8/16 位，
+// 需要先移位到目标字节/半字位置（与 wmask 选中的位置对应），
+// 否则未对齐地址（addr[1:0] != 0）会写错位置。
+always_comb begin
+    case (mem_size_i)
+        2'b00: store_data = {4{store_data_i[7:0]}}  << (8 * addr_i[1:0]); // byte
+        2'b01: store_data = {2{store_data_i[15:0]}} << (8 * addr_i[1:0]); // half
+        default: store_data = store_data_i;                                // word / 其它
+    endcase
 end
 
 always_comb begin
@@ -63,7 +75,7 @@ end
 
 always_ff @(posedge clk) begin
     if(store_i)
-        pmem_write(int'(addr_i), int'(store_data_i), int'(wmask));
+        pmem_write(int'(addr_i), int'(store_data), int'(wmask));
 end
 
 endmodule

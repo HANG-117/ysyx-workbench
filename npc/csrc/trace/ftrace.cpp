@@ -107,11 +107,13 @@ void ftrace_check(uint32_t pc, uint32_t inst, uint32_t ret_addr) {
         uint32_t rd = (inst >> 7) & 0x1f;
         if (rd == 1)  // jal x1, target
         {
-            int32_t imm =
-                ((inst >> 31) << 20) |
-                (((inst >> 12) & 0xff) << 12) |
-                (((inst >> 20) & 1) << 11) |
-                (((inst >> 21) & 0x3ff) << 1);
+            // J-type 立即数：imm[20]=inst[31], imm[19:12]=inst[19:12],
+            // imm[11]=inst[20], imm[10:1]=inst[30:21]
+            // 符号位直接放到 32 位位置，避免向后跳转（负偏移）时被当成正数
+            int32_t imm = ((inst >> 31) ? (int32_t)0xfff00000 : 0) |
+                          (((inst >> 12) & 0xff) << 12) |
+                          (((inst >> 20) & 1) << 11) |
+                          (((inst >> 21) & 0x3ff) << 1);
 
             uint32_t target = pc + imm;
 
