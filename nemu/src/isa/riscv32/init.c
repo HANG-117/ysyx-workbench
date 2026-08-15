@@ -32,12 +32,12 @@ static void restart() {
 
   /* The zero register is always 0. */
   cpu.gpr[0] = 0;
+  cpu.mstatus = 0x1800; // MPP=11, MPIE=1
 }
 
 void init_isa() {
   /* Load built-in image. */
   memcpy(guest_to_host(RESET_VECTOR), img, sizeof(img));
-    cpu.mstatus = 0x1800; // Set MPP to M-mode and MPIE to 1
 
   /* Initialize this virtual computer system. */
   restart();

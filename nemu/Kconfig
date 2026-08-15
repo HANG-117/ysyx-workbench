@@ -178,6 +178,10 @@ config MTRACE_END
   hex "the end address"
   default 0xffffffff
   
+config ETRACE
+  bool "Enable exception tracer"
+  default n
+
 config DIFFTEST
   depends on TARGET_NATIVE_ELF
   bool "Enable differential testing"

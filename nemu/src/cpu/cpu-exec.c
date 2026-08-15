@@ -33,6 +33,7 @@ static uint64_t g_timer = 0; // unit: us
 static bool g_print_step = false;
 
 extern void mtrace_display();
+extern void etrace_display();
 
 #ifdef CONFIG_ITRACE
 static char iringbuf[IRINGBUF_SIZE][128];
@@ -160,6 +161,7 @@ void assert_fail_msg() {
   isa_reg_display();
   IFDEF(CONFIG_ITRACE, iringbuf_display());
   IFDEF(CONFIG_MTRACE, mtrace_display());
+  IFDEF(CONFIG_ETRACE, etrace_display());
   statistic();
 }
 
@@ -190,6 +192,7 @@ void cpu_exec(uint64_t n) {
           nemu_state.halt_pc);
       IFDEF(CONFIG_ITRACE, if (nemu_state.state == NEMU_ABORT || nemu_state.halt_ret != 0) iringbuf_display());
       IFDEF(CONFIG_MTRACE, if (nemu_state.state == NEMU_ABORT || nemu_state.halt_ret != 0) mtrace_display());
+      IFDEF(CONFIG_ETRACE, if (nemu_state.state == NEMU_ABORT || nemu_state.halt_ret != 0) etrace_display());
       // fall through
     case NEMU_QUIT: statistic();
   }

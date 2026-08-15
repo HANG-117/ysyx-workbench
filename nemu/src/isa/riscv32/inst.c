@@ -144,6 +144,10 @@ static int decode_exec(Decode *s) {
           default: panic("unsupported csr read 0x%x", imm);
       }
   );
+  INSTPAT("0011000 00010 00000 000 00000 11100 11", mret, N, 
+      s->dnpc = cpu.mepc;
+      cpu.mstatus = (cpu.mstatus & ~0x1800) | ((cpu.mstatus & 0x1800) >> 4); // MPP=00, MPIE=MIE
+  );
   INSTPAT("??????? ????? ????? ??? ????? ????? ??", inv    , N, INV(s->pc));
   INSTPAT_END();
 
