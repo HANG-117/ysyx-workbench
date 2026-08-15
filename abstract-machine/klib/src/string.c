@@ -61,9 +61,29 @@ void *memset(void *s, int c, size_t n) {
 }
 
 void *memmove(void *dst, const void *src, size_t n) {
-  panic("Not implemented");
+    if (dst == src || n == 0) {
+        return dst;
+    }
+    
+    char *d = (char *)dst;
+    const char *s = (const char *)src;
+    
+    if (d < s) {
+        // 目标在源左侧，正向复制（低地址到高地址）
+        for (size_t i = 0; i < n; i++) {
+            d[i] = s[i];
+        }
+    } else {
+        // 目标在源右侧或重叠，反向复制（高地址到低地址）
+        // 避免覆盖还未复制的源数据
+        while (n > 0) {
+            n--;
+            d[n] = s[n];
+        }
+    }
+    
+    return dst;
 }
-
 void *memcpy(void *out, const void *in, size_t n) {
   while(n> 0){
     *(char *)out = *(char *)in;

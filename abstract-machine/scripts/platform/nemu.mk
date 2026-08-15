@@ -32,4 +32,6 @@ run: insert-arg
 gdb: insert-arg
 	$(MAKE) -C $(NEMU_HOME) ISA=$(ISA) gdb ARGS="$(NEMUFLAGS)" IMG=$(IMAGE).bin
 
+sdb: insert-arg
+	$(MAKE) -C $(NEMU_HOME) ISA=$(ISA) run  IMG=$(IMAGE).bin
 .PHONY: insert-arg

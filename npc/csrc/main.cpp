@@ -1,14 +1,7 @@
-#include <nvboard.h>
-#include <VNPC.h>
 #include <iostream>
-#include <fstream>
-#include <sstream>
-#define MEM_SIZE_WORDS (1 << 22)
-#define MEM_BASE 0x80000000 
-static uint32_t MEM[MEM_SIZE_WORDS];
-static TOP_NAME *npc = new TOP_NAME;
-int cycle = 0;
+#include <string>
 
+<<<<<<< HEAD
 static bool simulation_should_exit = false;
 extern "C" void sim_exit(){
   simulation_should_exit = true;
@@ -86,36 +79,51 @@ static void reset(int n) {
   while (n -- > 0) single_cycle();
   npc->rst = 0;
 }
+=======
+#include "common.hpp"
+#include "difftest/difftest.hpp"
+#include "memory/memory.hpp"
+#include "monitor/monitor.hpp"
+#include "sim/sim.hpp"
+#include "trace/trace.hpp"
+>>>>>>> pa3
 
 int main(int argc, char** argv) {
-  nvboard_bind_all_pins(npc);
-  nvboard_init();
-  npc->PC=0x80000000;
-  const char* img_file = "test/mem.bin";
-  if(argc >=2) {
-    img_file = argv[1];
-  };
-  load_program(img_file);
-  printf("PC:%08x\n",npc->imem_addr);
-  reset(10);
-  while(1) {
-    nvboard_update();
-    single_cycle();
-    cycle++;
-    if(simulation_should_exit) {
-      const char *COLOR_GREEN = "\033[1;32m"; // 绿色 (成功)
-      const char *COLOR_RED   = "\033[1;31m"; // 红色 (失败)
-      const char *COLOR_RESET = "\033[0m";  // 重置颜色 (非常重要，否则后面的输出也会变色)
+    // ---- 解析命令行：镜像文件（可选），ftrace 需要同名 .elf ----
+    const char* img_file = "test/mem.bin";
+    std::string elf_file;  // ftrace 符号文件
+    if (argc >= 2) {
+        img_file = argv[1];
+        if (FTRACE) {
+            std::string img_str = argv[1];
+            size_t dot_pos = img_str.find_last_of('.');
+            if (dot_pos != std::string::npos) {
+                elf_file = img_str.substr(0, dot_pos) + ".elf";
+            } else {
+                elf_file = img_str + ".elf";
+            }
+        }
+    }
 
-      if(npc->a0 == 0){
-          // 成功：绿色显示
-          printf("%shit good trap at %08x%s\n", COLOR_GREEN, npc->PC, COLOR_RESET);
-      }
-      else{
-          // 失败：红色显示
-          printf("%shit bad trap at %08x%s\n", COLOR_RED, npc->PC, COLOR_RESET);
-      }
-      break;
-      }
-  }
+    // ---- 初始化：内存 -> 仿真器 -> difftest -> 监视器 ----
+    Memory memory;  // 物理内存 + MMIO（构造时记录 RTC 基准时间）
+    memory.load_image(img_file);
+
+    if (FTRACE && !elf_file.empty()) {
+        ftrace_init(elf_file);
+    }
+
+    Simulator sim;
+    Difftest difftest(sim, memory);
+    sim.set_difftest(&difftest);
+    sim.reset(10);
+
+    // 复位完成后启用 difftest（复位期间不参与对比）
+    if (!difftest.init()) {
+        std::cerr << "difftest: init failed, running WITHOUT reference model" << std::endl;
+    }
+
+    // ---- 进入交互式监视器 ----
+    Monitor monitor(sim, memory);
+    return monitor.run();
 }

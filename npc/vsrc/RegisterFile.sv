@@ -8,12 +8,14 @@ module RegisterFile #(ADDR_WIDTH = 1, DATA_WIDTH = 1) (
 
 	input [DATA_WIDTH-1:0] wdata,
 	input [ADDR_WIDTH-1:0] waddr,
-	input wen
+	input wen,
+	output [DATA_WIDTH-1:0] a0_o
 );
+
 
 	assign rdata1 = raddr1 == 0 ? 0 : rf[raddr1];
 	assign rdata2 = raddr2 == 0 ? 0 : rf[raddr2];
-
+	assign a0_o = rf[10]; // a0 is x10
 	reg [DATA_WIDTH-1:0] rf [2**ADDR_WIDTH-1:0];
 	always @(posedge clk) begin
     	if(rst) begin
@@ -23,7 +25,6 @@ module RegisterFile #(ADDR_WIDTH = 1, DATA_WIDTH = 1) (
 		end
 		else if (wen && waddr != 0) begin
 			rf[waddr] <= wdata;
-			$display("Write reg: x%d, data: 0x%08x", waddr, wdata);
 		end
 	end
 endmodule

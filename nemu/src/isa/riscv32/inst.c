@@ -108,7 +108,11 @@ static int decode_exec(Decode *s) {
     int64_t product = (int64_t)(int32_t)src1 * (int64_t)(int32_t)src2;
     R(rd) = (uint32_t)(product >> 32);
 });
-
+  INSTPAT("0000001 ????? ????? 011 ????? 01100 11", mulhu, R, {
+    uint64_t product = (uint64_t)src1 * (uint64_t)src2;
+    R(rd) = (uint32_t)(product >> 32);
+});
+  
   INSTPAT("??????? ????? ????? 000 ????? 11000 11", beq    , B, if (src1 == src2) s->dnpc = s->pc + imm);
   INSTPAT("??????? ????? ????? 001 ????? 11000 11", bne    , B, if (src1 != src2) s->dnpc = s->pc + imm);
   INSTPAT("??????? ????? ????? 101 ????? 11000 11", bge    , B, if ((int32_t)src1 >= (int32_t)src2) s->dnpc = s->pc + imm);
@@ -116,6 +120,34 @@ static int decode_exec(Decode *s) {
   INSTPAT("??????? ????? ????? 110 ????? 11000 11", bltu   , B, if (src1 < src2) s->dnpc = s->pc + imm);
   INSTPAT("??????? ????? ????? 100 ????? 11000 11", blt    , B, if ((int32_t)src1 < (int32_t)src2) s->dnpc = s->pc + imm);
   INSTPAT("0000000 00001 00000 000 00000 11100 11", ebreak , N, NEMUTRAP(s->pc, R(10))); // R(10) is $a0
+  INSTPAT("0000000 00000 00000 000 00000 11100 11", ecall, N, 
+      s->dnpc = isa_raise_intr(11, s->pc)
+      
+  );
+  // csrrw 通用实现（imm 中存的是 CSR 编号）
+  INSTPAT("????? ???? ???? ????? 001 ????? 11100 11", csrrw, I, 
+    switch (imm) {
+        case 0x305: cpu.mtvec = src1; break;   // mtvec
+        case 0x341: cpu.mepc  = src1; break;   // mepc
+        case 0x300: cpu.mstatus = src1; break;  // mstatus
+        case 0x342: cpu.mcause = src1; break;   // mcause
+        default: panic("unsupported csr = 0x%x", imm);
+    }
+  );
+  // csrrs/csrr：读 CSR 到 rd
+  INSTPAT("????? ???? ???? ????? 010 ????? 11100 11", csrrs, I, 
+      switch (imm) {
+          case 0x305: R(rd) = cpu.mtvec;   break;  // mtvec
+          case 0x341: R(rd) = cpu.mepc;    break;  // mepc
+          case 0x300: R(rd) = cpu.mstatus; break;  // mstatus
+          case 0x342: R(rd) = cpu.mcause;  break;  // mcause
+          default: panic("unsupported csr read 0x%x", imm);
+      }
+  );
+  INSTPAT("0011000 00010 00000 000 00000 11100 11", mret, N, 
+      s->dnpc = cpu.mepc;
+      cpu.mstatus = (cpu.mstatus & ~0x1800) | ((cpu.mstatus & 0x1800) >> 4); // MPP=00, MPIE=MIE
+  );
   INSTPAT("??????? ????? ????? ??? ????? ????? ??", inv    , N, INV(s->pc));
   INSTPAT_END();
 

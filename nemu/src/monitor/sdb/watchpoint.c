@@ -116,8 +116,6 @@ void watchpoint_display(){
     p = p->next;
   }
 }
-
-
 void check_watchpoints(){
   WP *p = head;
   while(p != NULL) {

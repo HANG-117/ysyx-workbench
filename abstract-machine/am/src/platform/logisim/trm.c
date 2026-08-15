@@ -1,13 +1,13 @@
 #include <am.h>
 #include <nemu.h>
-
+#define SERIAL_PORT 0x10000000
 extern char _heap_start;
 int main(const char *args);
 
 Area heap = RANGE(&_heap_start, PMEM_END);
 
 void putch(char ch) {
-  outb(0x10000000, ch);
+  *(volatile char *)(SERIAL_PORT) = ch;
 }
 
 __attribute__((noinline))
