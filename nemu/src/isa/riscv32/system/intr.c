@@ -71,7 +71,7 @@ word_t isa_raise_intr(word_t NO, vaddr_t epc) {
 #endif
 
   cpu.mcause = NO;
-  cpu.mepc = epc;
+  cpu.mepc = epc +4;
   return cpu.mtvec;
 }
 

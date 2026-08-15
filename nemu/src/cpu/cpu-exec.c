@@ -26,11 +26,8 @@
  */
 #define MAX_INST_TO_PRINT 10
 #define IRINGBUF_SIZE 16
-<<<<<<< HEAD
 static char iringbuf[IRINGBUF_SIZE][128];
 static int iringbuf_ptr = 0;
-=======
->>>>>>> pa3
 
 void iringbuf_record(const char *log) {
     strncpy(iringbuf[iringbuf_ptr], log, sizeof(iringbuf[0]) - 1);
@@ -219,15 +216,9 @@ void cpu_exec(uint64_t n) {
            (nemu_state.halt_ret == 0 ? ANSI_FMT("HIT GOOD TRAP", ANSI_FG_GREEN) :
             ANSI_FMT("HIT BAD TRAP", ANSI_FG_RED))),
           nemu_state.halt_pc);
-<<<<<<< HEAD
-          if (nemu_state.state == NEMU_ABORT || (nemu_state.state == NEMU_END && nemu_state.halt_ret != 0)) {
-          iringbuf_print();
-      }
-=======
       IFDEF(CONFIG_ITRACE, if (nemu_state.state == NEMU_ABORT || nemu_state.halt_ret != 0) iringbuf_display());
       IFDEF(CONFIG_MTRACE, if (nemu_state.state == NEMU_ABORT || nemu_state.halt_ret != 0) mtrace_display());
       IFDEF(CONFIG_ETRACE, if (nemu_state.state == NEMU_ABORT || nemu_state.halt_ret != 0) etrace_display());
->>>>>>> pa3
       // fall through
     case NEMU_QUIT: statistic();
   }
