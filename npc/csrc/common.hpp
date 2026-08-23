@@ -13,7 +13,7 @@
 #define RTC_ADDR_HIGH  0xa000004cU  // RTC 时间高 32 位
 
 // ==================== 仿真上限 ====================
-#define MAX_CYCLES     100000
+#define MAX_CYCLES     10000000
 
 // ==================== 追踪开关 ====================
 #define ITRACE false

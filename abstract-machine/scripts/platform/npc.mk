@@ -29,4 +29,6 @@ image: image-dep
 run: insert-arg
 	$(MAKE) -C $(NPC_HOME) run IMG=$(abspath $(IMAGE).bin)
 
-.PHONY: insert-arg
+sdb: insert-arg
+	$(MAKE) -C $(NPC_HOME) sdb IMG=$(abspath $(IMAGE).bin)
+.PHONY: insert-arg image run sdb

@@ -64,6 +64,9 @@ run: $(BIN)
 	@echo "Running NPC with image: $(IMG)"
 	@$^ $(IMG)
 
+sdb: $(BIN)
+	@echo "Running NPC with image: $(IMG)"
+	@$^ $(IMG) --sdb
 
 clean:
 	rm -rf $(BUILD_DIR)
@@ -79,5 +82,4 @@ test:
 	riscv64-unknown-elf-objcopy -O binary test/test.elf test/test.bin
 convert:
 	tail -n +2 test/mem.hex | sed -e 's/.*: //' -e 's/ /\n/g' | sed -e 's/\(..\)\(..\)\(..\)\(..\)/\4 \3 \2 \1/' | xxd -r -p > test/mem.bin
-.PHONY: default all clean run test
-
+.PHONY: default all clean run sdb test
