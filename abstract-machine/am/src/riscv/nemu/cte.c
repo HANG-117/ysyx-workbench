@@ -53,9 +53,15 @@ void yield() {
 }
 
 bool ienabled() {
-  return false;
+  uintptr_t mstatus;
+  asm volatile("csrr %0, mstatus" : "=r"(mstatus));
+  return (mstatus & 0x8) != 0;
 }
 
 void iset(bool enable) {
-  
+  if(enable) {
+    asm volatile("csrsi mstatus, 0x8");
+  } else {
+    asm volatile("csrci mstatus, 0x8");
+  }
 }

@@ -18,10 +18,10 @@
 // ==================== 追踪开关 ====================
 #define ITRACE false
 
-#define MTRACE true
+#define MTRACE false
 #define MTRACE_START 0x80000000
 #define MTRACE_END   0xFFFFFFFF
 
-#define FTRACE true
+#define FTRACE false
 
 #endif

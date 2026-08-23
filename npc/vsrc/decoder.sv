@@ -7,6 +7,7 @@
 
 module decoder(
     input  [31:0]        opcode_i,
+    output               csr_o,
     output               exec_o,
     output               load_o,
     output               store_o,
@@ -16,6 +17,8 @@ module decoder(
     output               jump_base_rs1_o,
     output [1:0]         mem_size_o,
     output               mem_unsigned_o,
+    output logic [3:0]   csr_type_o,
+    output logic [11:0]  csr_addr_o,
     output logic [3:0]   alu_op_o,
     output [2:0]         wb_sel_o,
     output logic         alu_rs1_sel_o,
@@ -115,17 +118,17 @@ module decoder(
     assign jump_o   = is_jal || is_jalr;
     assign jump_base_rs1_o = is_jalr;
 
-    // 分支条件：直接透传 funct3（BEQ=000,BNE=001,BLT=100,BGE=101,BLTU=110,BGEU=111）
     assign branch_cond_o = funct3;
 
-    // ---------- 写回 ----------
+    // ---------- 写回 ----------LU
     assign wb_sel_o = (is_jal || is_jalr) ? `WB_SEL_PC4 :
                       is_load             ? `WB_SEL_MEM :
-                                             `WB_SEL_ALU;
+                      is_csr_wen          ? `WB_SEL_CSR :
+                                           `WB_SEL_ALU;
 
     // 是否有写回目标寄存器
     assign rd_valid_o = is_lui  || is_auipc || is_load || is_jal || is_jalr ||
-                        is_i_type_alu || is_r_type_alu;
+                        is_i_type_alu || is_r_type_alu || is_csr_wen;
 
     // 是否执行 ALU 运算
     assign exec_o = is_lui || is_auipc || is_i_type_alu || is_r_type_alu;
@@ -134,6 +137,42 @@ module decoder(
     assign rs1_addr_o = opcode_i[19:15];
     assign rs2_addr_o = opcode_i[24:20];
     assign rd_addr_o  = opcode_i[11:7];
+
+    //------------csr指令判定------------
+    assign csr_o = (opcode == 7'b1110011); // CSR 指令（ECALL/EBREAK 除外
+    assign csr_addr_o = opcode_i[31:20];
+    always_comb begin
+        if(csr_o) begin
+            case (funct3)
+                3'b000: begin
+                    case (opcode_i[31:20])
+                        12'h000: csr_type_o = `CSR_ECALL;
+                        12'h001: csr_type_o = `CSR_EBREAK;
+                        12'h302: csr_type_o = `CSR_MRET;
+                        default: csr_type_o = `CSR_NONE;
+                    endcase
+                end
+                3'b001: csr_type_o = `CSR_CSRRW;
+                3'b010: csr_type_o = `CSR_CSRRS;
+                3'b011: csr_type_o = `CSR_CSRRC;
+                3'b101: csr_type_o = `CSR_CSRRWI;
+                3'b110: csr_type_o = `CSR_CSRRSI;
+                3'b111: csr_type_o = `CSR_CSRRCI;
+                default: csr_type_o = `CSR_NONE;
+            endcase
+        end else begin
+            csr_type_o = `CSR_NONE;
+        end
+    end
+
+
+    // 必须是连续赋值（net 声明赋值），否则只在时间 0 求值一次、永远不变。
+    // 必须用 opcode==SYSTEM 限定：funct3 与其它指令冲突（如 auipc 也是 funct3=001），
+    // 不限定会把 auipc/slti/slt 等误判为 CSR 指令。
+    wire is_csr_wen = (opcode == 7'b1110011) &&
+                      ((funct3 == 3'b001) || (funct3 == 3'b010) || (funct3 == 3'b011) ||
+                       (funct3 == 3'b101) || (funct3 == 3'b110) || (funct3 == 3'b111));
+
 
 endmodule
 

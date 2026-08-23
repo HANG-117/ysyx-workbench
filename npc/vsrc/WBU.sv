@@ -7,6 +7,7 @@ module WBU(
     input  logic [31:0] alu_result_i,
     input  logic [31:0] load_data_i,
     input  logic [31:0] pc_i,
+    input  logic [31:0] csr_rdata_i,
 
     output logic        reg_wen_o,
     output logic [31:0] reg_wdata_o
@@ -17,6 +18,7 @@ always_comb begin
         `WB_SEL_ALU: reg_wdata_o = alu_result_i;
         `WB_SEL_PC4: reg_wdata_o = pc_i + 32'd4;
         `WB_SEL_MEM: reg_wdata_o = load_data_i;
+        `WB_SEL_CSR: reg_wdata_o = csr_rdata_i;
         default:     reg_wdata_o = 32'b0;
     endcase
 end

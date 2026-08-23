@@ -106,16 +106,28 @@
 `define INST_FENCE        32'h0000000F   // opcode=0001111, funct3=000, rs1=0, rd=0
 
 // 分支条件编码 (供 ALU 内部基于减法结果作跳转判定)
-`define BC_NONE  3'b000
-`define BC_BEQ   3'b001
-`define BC_BNE   3'b010
-`define BC_BLT   3'b011
-`define BC_BGE   3'b100
-`define BC_BLTU  3'b101
-`define BC_BGEU  3'b110
+`define BC_BEQ   3'b000
+`define BC_BNE   3'b001
+`define BC_BLT   3'b100
+`define BC_BGE   3'b101
+`define BC_BLTU  3'b110
+`define BC_BGEU  3'b111
 
 // 写回选择码
 `define WB_SEL_ALU 3'b000
 `define WB_SEL_PC4 3'b001
 `define WB_SEL_MEM 3'b010
+`define WB_SEL_CSR 3'b011
+
+// CSR 指令类型
+`define CSR_NONE   4'b0000
+`define CSR_CSRRW  4'b0001
+`define CSR_CSRRS  4'b0010
+`define CSR_CSRRC  4'b0011
+`define CSR_CSRRWI 4'b0101
+`define CSR_CSRRSI 4'b0110
+`define CSR_CSRRCI 4'b0111
+`define CSR_ECALL  4'b1000
+`define CSR_EBREAK 4'b1001
+`define CSR_MRET   4'b1010
 

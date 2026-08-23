@@ -28,12 +28,21 @@ logic [31:0] exu_next_pc;
 
 logic [31:0] load_data;
 
+logic csr;
 logic [31:0] a0;
+logic [3:0] csr_type;
+logic [11:0] csr_addr;
+logic [31:0] csr_rdata;
+logic        pc_redirect_valid;
+logic [31:0] pc_redirect_target;
+
 
 IFU ifu_inst(
     .clk(clk),
     .rst(rst),
-    .next_pc_i(exu_next_pc),
+    .brach_target_i(exu_next_pc),
+    .pc_redirect_valid(pc_redirect_valid),
+    .pc_redirect_target(pc_redirect_target),
     .inst_o(inst),
     .pc_o(pc)
 );
@@ -42,6 +51,7 @@ IDU idu_inst(
     .clk(clk),
     .rst(rst),
     .inst_i(inst),
+    .csr_o(csr),
     .exec_o(exec),
     .load_o(load),
     .store_o(store),
@@ -51,6 +61,8 @@ IDU idu_inst(
     .jump_base_rs1_o(jump_base_rs1),
     .mem_size_o(mem_size),
     .mem_unsigned_o(mem_unsigned),
+    .csr_type_o(csr_type),
+    .csr_addr_o(csr_addr),
     .alu_op_o(alu_op),
     .wb_sel_o(wb_sel),
     .alu_rs1_sel_o(alu_rs1_sel),
@@ -72,6 +84,20 @@ RegisterFile #(.ADDR_WIDTH(5), .DATA_WIDTH(32)) regfile_inst(
     .wdata(reg_wdata),
     .wen(reg_wen),
     .a0_o(a0)
+);
+
+csr_reg csr_reg_inst(
+    .clk(clk),
+    .rst(rst),
+    .addr(csr_addr),
+    .csr_type(csr_type),
+    .rs1_addr(rs1_addr),
+    .rs1_data(reg_rdata1),
+    .pc(pc),
+    .a0(a0),
+    .csr_rdata(csr_rdata),
+    .pc_redirect_valid(pc_redirect_valid),
+    .pc_redirect_target(pc_redirect_target)
 );
 
 EXU exu_inst(
@@ -108,16 +134,11 @@ WBU wbu_inst(
     .wb_sel_i(wb_sel),
     .alu_result_i(alu_result),
     .load_data_i(load_data),
+    .csr_rdata_i(csr_rdata),
     .pc_i(pc),
     .rd_addr_i(rd_addr),
     .reg_wen_o(reg_wen),
     .reg_wdata_o(reg_wdata)
 );
 
-import "DPI-C" function void sim_exit(input int pc,input int a0);
-always_ff @(posedge clk) begin
-    if(inst == 32'h00100073) begin
-        sim_exit(pc, a0);
-    end
-end
 endmodule

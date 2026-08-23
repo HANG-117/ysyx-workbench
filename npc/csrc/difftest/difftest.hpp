@@ -35,7 +35,7 @@ public:
 
     void enable() { enabled_ = true; }
     bool enabled() const { return enabled_; }
-
+    void disable() { enabled_ = false; }
     // 每执行完一条指令调用一次：
     //   pre  = DUT 执行本条指令前的状态 (pc 即本条指令地址)
     //   post = DUT 执行后的状态

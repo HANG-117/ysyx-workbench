@@ -42,12 +42,10 @@ void init_ftrace(const char *elf_path) {
     close(fd);
     Assert(map != MAP_FAILED, "mmap failed for '%s'", elf_path);
 
-    // 检查 ELF 魔数和架构
     Elf32_Ehdr *ehdr = (Elf32_Ehdr *)map;
     Assert(memcmp(ehdr->e_ident, ELFMAG, 4) == 0, "Not an ELF file: %s", elf_path);
     Assert(ehdr->e_machine == EM_RISCV, "Not a RISC-V ELF: %s", elf_path);
 
-    // 节头表定位
     Elf32_Shdr *shdrs = (Elf32_Shdr *)(map + ehdr->e_shoff);
     const char *shstrtab = (char *)(map + shdrs[ehdr->e_shstrndx].sh_offset);
 
@@ -93,11 +91,9 @@ void init_ftrace(const char *elf_path) {
         }
     }
 
-    // 排序
     qsort(ftrace_syms, ftrace_sym_cnt, sizeof(ftrace_sym_t), sym_cmp);
 
-       // 设置基址
-    ftrace_base = 0;   // 客户程序链接地址即为加载地址，不需要减去 RESET_VECTOR
+    ftrace_base = 0; 
     ftrace_enabled = true;
 
     Log("ftrace: loaded %d function symbols from '%s', base=0x%lx",
@@ -113,7 +109,6 @@ const char *ftrace_lookup(uint64_t vaddr) {
 
     uint64_t off = vaddr - ftrace_base;
 
-    /* 二分查找最后一个满足 addr <= off 的符号 */
     int l = 0, r = ftrace_sym_cnt - 1;
     int idx = -1;
     while (l <= r) {

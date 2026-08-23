@@ -144,6 +144,62 @@ static int decode_exec(Decode *s) {
           default: panic("unsupported csr read 0x%x", imm);
       }
   );
+
+    // csrrc（寄存器版本，清位）: csr &= ~src1，R(rd)=旧值
+  INSTPAT("????? ???? ???? ????? 011 ????? 11100 11", csrrc, I, 
+    uint32_t old;
+    switch (imm) {
+        case 0x300: old = cpu.mstatus; cpu.mstatus &= ~src1; break;
+        case 0x305: old = cpu.mtvec;   cpu.mtvec   &= ~src1; break;
+        case 0x341: old = cpu.mepc;    cpu.mepc    &= ~src1; break;
+        case 0x342: old = cpu.mcause;  cpu.mcause  &= ~src1; break;
+        default: panic("unsupported csrrc csr = 0x%x", imm);
+    }
+    R(rd) = old;
+  );
+
+  // csrrwi（立即数版本，写）: csr = zimm，R(rd)=旧值
+  INSTPAT("????? ???? ???? ????? 101 ????? 11100 11", csrrwi, I,
+    uint32_t zimm = (src1) & 0x1f;  // rs1 字段里存的是 5 位无符号立即数
+    uint32_t old;
+    switch (imm) {
+        case 0x300: old = cpu.mstatus; cpu.mstatus = zimm; break;
+        case 0x305: old = cpu.mtvec;   cpu.mtvec   = zimm; break;
+        case 0x341: old = cpu.mepc;    cpu.mepc    = zimm; break;
+        case 0x342: old = cpu.mcause;  cpu.mcause  = zimm; break;
+        default: panic("unsupported csrrwi csr = 0x%x", imm);
+    }
+    R(rd) = old;
+  );
+
+  // csrrsi（立即数版本，置位）: csr |= zimm，R(rd)=旧值
+  INSTPAT("????? ???? ???? ????? 110 ????? 11100 11", csrrsi, I,
+    uint32_t zimm = (src1) & 0x1f;
+    uint32_t old;
+    switch (imm) {
+        case 0x300: old = cpu.mstatus; cpu.mstatus |= zimm; break;
+        case 0x305: old = cpu.mtvec;   cpu.mtvec   |= zimm; break;
+        case 0x341: old = cpu.mepc;    cpu.mepc    |= zimm; break;
+        case 0x342: old = cpu.mcause;  cpu.mcause  |= zimm; break;
+        default: panic("unsupported csrrsi csr = 0x%x", imm);
+    }
+    R(rd) = old;
+  );
+
+  // csrrci（立即数版本，清位）: csr &= ~zimm，R(rd)=旧值
+  // ← 你遇到的 csrci mstatus, 8 就是这条！
+  INSTPAT("????? ???? ???? ????? 111 ????? 11100 11", csrrci, I,
+    uint32_t zimm = (src1) & 0x1f;
+    uint32_t old;
+    switch (imm) {
+        case 0x300: old = cpu.mstatus; cpu.mstatus &= ~zimm; break;  // mstatus → csrci mstatus,8 关 MIE
+        case 0x305: old = cpu.mtvec;   cpu.mtvec   &= ~zimm; break;
+        case 0x341: old = cpu.mepc;    cpu.mepc    &= ~zimm; break;
+        case 0x342: old = cpu.mcause;  cpu.mcause  &= ~zimm; break;
+        default: panic("unsupported csrrci csr = 0x%x", imm);
+    }
+    R(rd) = old;
+  );
   INSTPAT("0011000 00010 00000 000 00000 11100 11", mret, N, 
       s->dnpc = cpu.mepc;
       cpu.mstatus = (cpu.mstatus & ~0x1800) | ((cpu.mstatus & 0x1800) >> 4); // MPP=00, MPIE=MIE
