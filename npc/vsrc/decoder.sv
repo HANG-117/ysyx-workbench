@@ -6,27 +6,10 @@
 `include "core_defs.sv"
 
 module decoder(
-    input  [31:0]        opcode_i,
-    output               csr_o,
-    output               exec_o,
-    output               load_o,
-    output               store_o,
-    output               branch_o,
-    output               rd_valid_o,
-    output               jump_o,
-    output               jump_base_rs1_o,
-    output [1:0]         mem_size_o,
-    output               mem_unsigned_o,
-    output logic [3:0]   csr_type_o,
-    output logic [11:0]  csr_addr_o,
-    output logic [3:0]   alu_op_o,
-    output [2:0]         wb_sel_o,
-    output logic         alu_rs1_sel_o,
-    output logic         alu_rs2_sel_o,
-    output logic [2:0]   branch_cond_o,
-    output logic [4:0]   rs1_addr_o,
-    output logic [4:0]   rs2_addr_o,
-    output logic [4:0]   rd_addr_o
+    input  logic [31:0] opcode_i,
+    input  logic [31:0] pc_i,
+    input  logic [31:0] imm_i,
+    output core_types_pkg::decoded_uop_t uop_o
 );
 
     logic [6:0] opcode;
@@ -55,8 +38,8 @@ module decoder(
     wire is_ebreak = (opcode == 7'b1110011) && (opcode_i[31:7] == 25'h0200000);
 
     // ---------- 加载 / 存储 ----------
-    assign load_o  = is_load;   // LB/LH/LW/LBU/LHU
-    assign store_o = is_store;  // SB/SH/SW
+    assign uop_o.load  = is_load;   // LB/LH/LW/LBU/LHU
+    assign uop_o.store = is_store;  // SB/SH/SW
 
     // ---------- ALU 运算码 ----------
     logic use_alt;
@@ -71,97 +54,100 @@ module decoder(
 
     always_comb begin
         if (is_lui) begin
-            alu_op_o = `ALU_LUI;
+            uop_o.alu_op = `ALU_LUI;
         end else if (is_r_type_alu || is_i_type_alu) begin
-            alu_op_o = {use_alt, funct3};
+            uop_o.alu_op = {use_alt, funct3};
         end else if (is_branch) begin
-            alu_op_o = `ALU_SUB;   // 分支判定基于减法
+            uop_o.alu_op = `ALU_SUB;   // 分支判定基于减法
         end else begin
-            alu_op_o = `ALU_ADD;
+            uop_o.alu_op = `ALU_ADD;
         end
     end
 
     // ---------- ALU 输入选择 ----------
     always_comb begin
-        alu_rs1_sel_o = 1'b0;
-        alu_rs2_sel_o = 1'b0;
+        uop_o.alu_rs1_sel = 1'b0;
+        uop_o.alu_rs2_sel = 1'b0;
         case (opcode)
             7'b0010011, 7'b0000011, 7'b0100011, 7'b1100111: begin // I型 / Load / Store / JALR
-                alu_rs1_sel_o = 1'b0;
-                alu_rs2_sel_o = 1'b1;
+                uop_o.alu_rs1_sel = 1'b0;
+                uop_o.alu_rs2_sel = 1'b1;
             end
             7'b0110111: begin // LUI
-                alu_rs1_sel_o = 1'b0;
-                alu_rs2_sel_o = 1'b1;
+                uop_o.alu_rs1_sel = 1'b0;
+                uop_o.alu_rs2_sel = 1'b1;
             end
             7'b1100011: begin // Branch: 两个操作数都来自寄存器
-                alu_rs1_sel_o = 1'b0;
-                alu_rs2_sel_o = 1'b0;
+                uop_o.alu_rs1_sel = 1'b0;
+                uop_o.alu_rs2_sel = 1'b0;
             end
             7'b1101111, 7'b0010111: begin // JAL / AUIPC
-                alu_rs1_sel_o = 1'b1;
-                alu_rs2_sel_o = 1'b1;
+                uop_o.alu_rs1_sel = 1'b1;
+                uop_o.alu_rs2_sel = 1'b1;
             end
             default: begin
-                alu_rs1_sel_o = 1'b0;
-                alu_rs2_sel_o = 1'b0;
+                uop_o.alu_rs1_sel = 1'b0;
+                uop_o.alu_rs2_sel = 1'b0;
             end
         endcase
     end
 
     // ---------- 存储器访问属性 ----------
-    assign mem_size_o     = (is_load || is_store) ? funct3[1:0] : `MEM_SIZE_WORD;
-    assign mem_unsigned_o = is_load && funct3[2];
+    assign uop_o.mem_size     = (is_load || is_store) ? funct3[1:0] : `MEM_SIZE_WORD;
+    assign uop_o.mem_unsigned = is_load && funct3[2];
 
     // ---------- 分支 / 跳转 ----------
-    assign branch_o = is_branch;
-    assign jump_o   = is_jal || is_jalr;
-    assign jump_base_rs1_o = is_jalr;
+    assign uop_o.branch = is_branch;
+    assign uop_o.jump   = is_jal || is_jalr;
+    assign uop_o.jump_base_rs1 = is_jalr;
 
-    assign branch_cond_o = funct3;
+    assign uop_o.branch_cond = funct3;
 
     // ---------- 写回 ----------LU
-    assign wb_sel_o = (is_jal || is_jalr) ? `WB_SEL_PC4 :
-                      is_load             ? `WB_SEL_MEM :
-                      is_csr_wen          ? `WB_SEL_CSR :
-                                           `WB_SEL_ALU;
+    assign uop_o.wb_sel = (is_jal || is_jalr) ? `WB_SEL_PC4 :
+                          is_load             ? `WB_SEL_MEM :
+                          is_csr_wen          ? `WB_SEL_CSR :
+                                               `WB_SEL_ALU;
 
     // 是否有写回目标寄存器
-    assign rd_valid_o = is_lui  || is_auipc || is_load || is_jal || is_jalr ||
-                        is_i_type_alu || is_r_type_alu || is_csr_wen;
+    assign uop_o.meta.rd_valid = is_lui  || is_auipc || is_load || is_jal || is_jalr ||
+                                 is_i_type_alu || is_r_type_alu || is_csr_wen;
 
     // 是否执行 ALU 运算
-    assign exec_o = is_lui || is_auipc || is_i_type_alu || is_r_type_alu;
+    assign uop_o.exec = is_lui || is_auipc || is_i_type_alu || is_r_type_alu;
 
     // ---------- 寄存器地址 ----------
-    assign rs1_addr_o = opcode_i[19:15];
-    assign rs2_addr_o = opcode_i[24:20];
-    assign rd_addr_o  = opcode_i[11:7];
+    assign uop_o.meta.pc        = pc_i;
+    assign uop_o.meta.inst      = opcode_i;
+    assign uop_o.meta.rs1_addr  = opcode_i[19:15];
+    assign uop_o.meta.rs2_addr  = opcode_i[24:20];
+    assign uop_o.meta.rd_addr   = opcode_i[11:7];
+    assign uop_o.imm            = imm_i;
 
     //------------csr指令判定------------
-    assign csr_o = (opcode == 7'b1110011); // CSR 指令（ECALL/EBREAK 除外
-    assign csr_addr_o = opcode_i[31:20];
+    assign uop_o.csr = (opcode == 7'b1110011); // CSR 指令（ECALL/EBREAK 除外
+    assign uop_o.csr_addr = opcode_i[31:20];
     always_comb begin
-        if(csr_o) begin
+        if(opcode == 7'b1110011) begin
             case (funct3)
                 3'b000: begin
                     case (opcode_i[31:20])
-                        12'h000: csr_type_o = `CSR_ECALL;
-                        12'h001: csr_type_o = `CSR_EBREAK;
-                        12'h302: csr_type_o = `CSR_MRET;
-                        default: csr_type_o = `CSR_NONE;
+                        12'h000: uop_o.csr_type = `CSR_ECALL;
+                        12'h001: uop_o.csr_type = `CSR_EBREAK;
+                        12'h302: uop_o.csr_type = `CSR_MRET;
+                        default: uop_o.csr_type = `CSR_NONE;
                     endcase
                 end
-                3'b001: csr_type_o = `CSR_CSRRW;
-                3'b010: csr_type_o = `CSR_CSRRS;
-                3'b011: csr_type_o = `CSR_CSRRC;
-                3'b101: csr_type_o = `CSR_CSRRWI;
-                3'b110: csr_type_o = `CSR_CSRRSI;
-                3'b111: csr_type_o = `CSR_CSRRCI;
-                default: csr_type_o = `CSR_NONE;
+                3'b001: uop_o.csr_type = `CSR_CSRRW;
+                3'b010: uop_o.csr_type = `CSR_CSRRS;
+                3'b011: uop_o.csr_type = `CSR_CSRRC;
+                3'b101: uop_o.csr_type = `CSR_CSRRWI;
+                3'b110: uop_o.csr_type = `CSR_CSRRSI;
+                3'b111: uop_o.csr_type = `CSR_CSRRCI;
+                default: uop_o.csr_type = `CSR_NONE;
             endcase
         end else begin
-            csr_type_o = `CSR_NONE;
+            uop_o.csr_type = `CSR_NONE;
         end
     end
 
@@ -175,4 +161,3 @@ module decoder(
 
 
 endmodule
-

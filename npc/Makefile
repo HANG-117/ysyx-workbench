@@ -23,7 +23,9 @@ $(SRC_AUTO_BIND): $(NXDC_FILES)
 # core_defs.sv 是纯宏头文件，不作为独立编译单元参与编译，
 # 仅通过 +incdir+vsrc 被各模块 `include 解析。
 DEFS = $(abspath ./vsrc)/core_defs.sv
-VSRCS = $(filter-out $(DEFS), $(shell find $(abspath ./vsrc) -name "*.sv"))
+# SystemVerilog package 必须先于引用它的模块编译；不要依赖 find 的目录顺序。
+CORE_TYPES_PKG = $(abspath ./vsrc)/core_types_pkg.sv
+VSRCS = $(CORE_TYPES_PKG) $(filter-out $(DEFS) $(CORE_TYPES_PKG), $(shell find $(abspath ./vsrc) -name "*.sv"))
 CSRCS = $(shell find $(abspath ./csrc) -name "*.c" -or -name "*.cc" -or -name "*.cpp")
 CSRCS += $(SRC_AUTO_BIND)
 # 头文件也纳入依赖：修改 .hpp/.h 会触发重编

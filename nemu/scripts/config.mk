@@ -48,7 +48,7 @@ menuconfig: $(MCONF) $(CONF) $(FIXDEP)
 savedefconfig: $(CONF)
 	$(Q)$< $(silent) --$@=configs/defconfig $(Kconfig)
 
-%defconfig: $(CONF) $(FIXDEP)
+defconfig: $(CONF) $(FIXDEP)
 	$(Q)$< $(silent) --defconfig=configs/$@ $(Kconfig)
 	$(Q)$< $(silent) --syncconfig $(Kconfig)
 

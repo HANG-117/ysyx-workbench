@@ -7,9 +7,6 @@ void __am_timer_init() {
 
 void __am_timer_uptime(AM_TIMER_UPTIME_T *uptime) {
   uptime->us = 0;
-  uptime->us = inl(RTC_ADDR);
-  nemu_trap(0);
-  outl(RTC_ADDR, uptime->us);
   volatile uint32_t *rtc = (volatile uint32_t *)(RTC_ADDR);
   uint32_t hi = rtc[1];
   uint32_t lo = rtc[0]; // 读取低32位时触发 rtc_io_handler 更新

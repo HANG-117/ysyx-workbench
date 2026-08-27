@@ -1,3 +1,5 @@
+`include "core_defs.sv"
+
 module csr_reg(
     input  logic        clk,
     input  logic        rst,

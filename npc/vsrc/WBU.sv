@@ -1,30 +1,20 @@
+`include "core_defs.sv"
+
 module WBU(
-    input  logic        rd_valid_i,
-    input  logic [2:0]  wb_sel_i,
-
-    input  logic [4:0]  rd_addr_i,
-
-    input  logic [31:0] alu_result_i,
-    input  logic [31:0] load_data_i,
-    input  logic [31:0] pc_i,
-    input  logic [31:0] csr_rdata_i,
-
-    output logic        reg_wen_o,
-    output logic [31:0] reg_wdata_o
+    input  core_types_pkg::wbu_req_t   req_i,
+    output core_types_pkg::reg_write_t reg_write_o
 );
 
 always_comb begin
-    case(wb_sel_i)
-        `WB_SEL_ALU: reg_wdata_o = alu_result_i;
-        `WB_SEL_PC4: reg_wdata_o = pc_i + 32'd4;
-        `WB_SEL_MEM: reg_wdata_o = load_data_i;
-        `WB_SEL_CSR: reg_wdata_o = csr_rdata_i;
-        default:     reg_wdata_o = 32'b0;
+    case(req_i.wb_sel)
+        `WB_SEL_ALU: reg_write_o.data = req_i.alu_result;
+        `WB_SEL_PC4: reg_write_o.data = req_i.meta.pc + 32'd4;
+        `WB_SEL_MEM: reg_write_o.data = req_i.load_data;
+        `WB_SEL_CSR: reg_write_o.data = req_i.csr_data;
+        default:     reg_write_o.data = 32'b0;
     endcase
-end
-
-always_comb begin
-    reg_wen_o = rd_valid_i && (rd_addr_i != 5'd0);
+    reg_write_o.addr = req_i.meta.rd_addr;
+    reg_write_o.wen  = req_i.meta.rd_valid && (req_i.meta.rd_addr != 5'd0);
 end
 
 endmodule

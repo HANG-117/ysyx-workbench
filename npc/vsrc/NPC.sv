@@ -5,42 +5,32 @@ module NPC(
     input rst
 );
 
-logic [31:0] next_pc;
 logic [31:0] inst;
 logic [31:0] pc;
 
-logic exec, load, store, branch, rd_valid, jump, jump_base_rs1;
-logic [1:0] mem_size;
-logic mem_unsigned;
-logic [3:0] alu_op;
-logic [2:0] wb_sel;
-logic alu_rs1_sel, alu_rs2_sel;
-logic [2:0] branch_cond;
-logic [4:0] rs1_addr, rs2_addr, rd_addr;
-
 logic [31:0] reg_rdata1, reg_rdata2;
-logic [31:0] reg_wdata;
-logic reg_wen;
 
-logic [31:0] alu_result;
-logic branch_taken;
-logic [31:0] exu_next_pc;
-
-logic [31:0] load_data;
-
-logic csr;
 logic [31:0] a0;
-logic [3:0] csr_type;
-logic [11:0] csr_addr;
 logic [31:0] csr_rdata;
 logic        pc_redirect_valid;
 logic [31:0] pc_redirect_target;
+
+core_types_pkg::decoded_uop_t decoded_uop;
+core_types_pkg::exu_req_t     exu_req;
+core_types_pkg::exu_result_t  exu_result;
+core_types_pkg::lsu_req_t     lsu_req;
+core_types_pkg::lsu_result_t  lsu_result;
+core_types_pkg::wbu_req_t     wbu_req;
+core_types_pkg::reg_write_t   reg_write;
+logic                         exu_issue_valid;
+logic                         lsu_issue_valid;
+logic [31:0]                  issue_next_pc;
 
 
 IFU ifu_inst(
     .clk(clk),
     .rst(rst),
-    .brach_target_i(exu_next_pc),
+    .brach_target_i(issue_next_pc),
     .pc_redirect_valid(pc_redirect_valid),
     .pc_redirect_target(pc_redirect_target),
     .inst_o(inst),
@@ -51,94 +41,80 @@ IDU idu_inst(
     .clk(clk),
     .rst(rst),
     .inst_i(inst),
-    .csr_o(csr),
-    .exec_o(exec),
-    .load_o(load),
-    .store_o(store),
-    .branch_o(branch),
-    .rd_valid_o(rd_valid),
-    .jump_o(jump),
-    .jump_base_rs1_o(jump_base_rs1),
-    .mem_size_o(mem_size),
-    .mem_unsigned_o(mem_unsigned),
-    .csr_type_o(csr_type),
-    .csr_addr_o(csr_addr),
-    .alu_op_o(alu_op),
-    .wb_sel_o(wb_sel),
-    .alu_rs1_sel_o(alu_rs1_sel),
-    .alu_rs2_sel_o(alu_rs2_sel),
-    .branch_cond_o(branch_cond),
-    .rs1_addr_o(rs1_addr),
-    .rs2_addr_o(rs2_addr),
-    .rd_addr_o(rd_addr)
+    .pc_i(pc),
+    .uop_o(decoded_uop)
 );
 
 RegisterFile #(.ADDR_WIDTH(5), .DATA_WIDTH(32)) regfile_inst(
     .clk(clk),
     .rst(rst),
-    .raddr1(rs1_addr),
-    .raddr2(rs2_addr),
+    .raddr1(decoded_uop.meta.rs1_addr),
+    .raddr2(decoded_uop.meta.rs2_addr),
     .rdata1(reg_rdata1),
     .rdata2(reg_rdata2),
-    .waddr(rd_addr),
-    .wdata(reg_wdata),
-    .wen(reg_wen),
+    .waddr(reg_write.addr),
+    .wdata(reg_write.data),
+    .wen(reg_write.wen),
     .a0_o(a0)
 );
 
 csr_reg csr_reg_inst(
     .clk(clk),
     .rst(rst),
-    .addr(csr_addr),
-    .csr_type(csr_type),
-    .rs1_addr(rs1_addr),
+    .addr(decoded_uop.csr_addr),
+    .csr_type(decoded_uop.csr_type),
+    .rs1_addr(decoded_uop.meta.rs1_addr),
     .rs1_data(reg_rdata1),
-    .pc(pc),
+    .pc(decoded_uop.meta.pc),
     .a0(a0),
     .csr_rdata(csr_rdata),
     .pc_redirect_valid(pc_redirect_valid),
     .pc_redirect_target(pc_redirect_target)
 );
 
-EXU exu_inst(
-    .inst_i(inst),
-    .pc_i(pc),
-    .rs1_rdata_i(reg_rdata1),
-    .rs2_rdata_i(reg_rdata2),
-    .alu_rs1_sel_i(alu_rs1_sel),
-    .alu_rs2_sel_i(alu_rs2_sel),
-    .alu_op_i(alu_op),
-    .branch_cond_i(branch_cond),
-    .branch_en_i(branch),
-    .jump_en_i(jump),
-    .jump_base_rs1_i(jump_base_rs1),
-    .alu_result_o(alu_result),
-    .branch_taken_o(branch_taken),
-    .next_pc_o(exu_next_pc)
+Issue issue_inst(
+    .uop_i(decoded_uop),
+    .rs1_data_i(reg_rdata1),
+    .rs2_data_i(reg_rdata2),
+    .exu_req_o(exu_req),
+    .exu_valid_o(exu_issue_valid),
+    .lsu_req_o(lsu_req),
+    .lsu_valid_o(lsu_issue_valid)
 );
+
+EXU exu_inst(
+    .valid_i(exu_issue_valid),
+    .req_i(exu_req),
+    .result_o(exu_result)
+);
+
+// A memory uop does not enter EXU.  It cannot redirect control flow, so its
+// fetch successor is the architectural sequential PC.
+always_comb begin
+    issue_next_pc = exu_issue_valid ? exu_result.next_pc
+                                    : (decoded_uop.meta.pc + 32'd4);
+end
 
 LSU lsu_inst(
     .clk(clk),
     .rst(rst),
-    .load_i(load),
-    .store_i(store),
-    .addr_i(alu_result),
-    .store_data_i(reg_rdata2),
-    .mem_size_i(mem_size),
-    .mem_unsigned_i(mem_unsigned),
-    .load_data_o(load_data)
+    .valid_i(lsu_issue_valid),
+    .req_i(lsu_req),
+    .result_o(lsu_result)
 );
 
+always_comb begin
+    wbu_req = '0;
+    wbu_req.meta       = decoded_uop.meta;
+    wbu_req.wb_sel     = decoded_uop.wb_sel;
+    wbu_req.alu_result = exu_result.alu_result;
+    wbu_req.load_data  = lsu_result.load_data;
+    wbu_req.csr_data   = csr_rdata;
+end
+
 WBU wbu_inst(
-    .rd_valid_i(rd_valid),
-    .wb_sel_i(wb_sel),
-    .alu_result_i(alu_result),
-    .load_data_i(load_data),
-    .csr_rdata_i(csr_rdata),
-    .pc_i(pc),
-    .rd_addr_i(rd_addr),
-    .reg_wen_o(reg_wen),
-    .reg_wdata_o(reg_wdata)
+    .req_i(wbu_req),
+    .reg_write_o(reg_write)
 );
 
 endmodule
