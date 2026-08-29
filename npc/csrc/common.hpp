@@ -9,11 +9,12 @@
 
 // ==================== MMIO 地址映射 ====================
 #define SERIAL_PORT    0x10000000U  // 串口地址 (SoC 兼容)
+#define UART_RX_PORT   0x10000004U  // UART 接收端口
 #define RTC_ADDR_LOW   0xa0000048U  // RTC 时间低 32 位
 #define RTC_ADDR_HIGH  0xa000004cU  // RTC 时间高 32 位
 
 // ==================== 仿真上限 ====================
-#define MAX_CYCLES     10000000
+#define MAX_CYCLES     1000000000
 
 // ==================== 追踪开关 ====================
 #define ITRACE false

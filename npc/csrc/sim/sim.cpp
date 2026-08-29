@@ -2,6 +2,8 @@
 
 #include <iostream>
 
+#include <VNPC___024root.h>
+
 #include "trace/trace.hpp"
 
 // 供 DPI-C 回调使用的单例指针
@@ -89,15 +91,15 @@ void Simulator::step() {
 }
 
 uint32_t Simulator::pc() const {
-    return top_->NPC__DOT__ifu_inst__DOT__pc_reg_inst__DOT__pc;
+    return top_->rootp->NPC__DOT__ifu_inst__DOT__pc_reg_inst__DOT__pc;
 }
 
 uint32_t Simulator::inst() const {
-    return top_->NPC__DOT__inst;
+    return top_->rootp->NPC__DOT__inst;
 }
 
 uint32_t Simulator::reg(int idx) const {
-    return top_->NPC__DOT__regfile_inst__DOT__rf[idx];
+    return top_->rootp->NPC__DOT__regfile_inst__DOT__rf[idx];
 }
 
 CPU_state Simulator::snapshot() const {

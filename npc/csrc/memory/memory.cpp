@@ -5,8 +5,9 @@
 #include <fstream>
 #include <iostream>
 #include <sys/time.h>
-
 #include "trace/trace.hpp"
+#include "sys/select.h"
+#include <unistd.h>
 
 // DPI-C 全局入口：RTL 通过 import "DPI-C" 调用
 static Memory* g_mem = nullptr;
@@ -24,6 +25,19 @@ extern "C" void pmem_write(int waddr, int wdata, int wmask) {
     }
 }
 
+static int read_stdin() {
+      fd_set readfds;
+      FD_ZERO(&readfds);
+      FD_SET(STDIN_FILENO, &readfds);
+
+      timeval tv{0, 0};
+      if (select(STDIN_FILENO + 1, &readfds, nullptr, nullptr, &tv) <= 0) {
+          return -1;
+      }
+
+      unsigned char ch;
+      return ::read(STDIN_FILENO, &ch, 1) == 1 ? ch : -1;
+  }
 // 物理内存本体（BSS，按字寻址，从 MEM_BASE 开始）
 uint32_t Memory::mem[MEM_SIZE_WORDS];
 
@@ -73,7 +87,11 @@ uint8_t* Memory::host_addr(uint32_t guest_addr) {
 }
 
 uint32_t Memory::read(uint32_t addr) {
-    // 1. MMIO：实时时钟 RTC
+    if (addr == UART_RX_PORT) {
+      int ch = read_stdin();
+      return ch < 0 ? 0 : static_cast<uint32_t>(ch);
+  }
+
     if (addr == RTC_ADDR_LOW) {
         uint64_t now = now_us() - boot_time_us_;
         return (uint32_t)(now & 0xFFFFFFFF);  // 低 32 位（单位：微秒）
@@ -87,6 +105,7 @@ uint32_t Memory::read(uint32_t addr) {
     if (addr < MEM_BASE || addr >= (MEM_BASE + (MEM_SIZE_WORDS * 4))) {
         return 0;  // 越界/未映射区域返回 0，防止组合逻辑 Glitch 导致崩溃
     }
+    
 
     return mem[(addr - MEM_BASE) >> 2];
 }
@@ -98,6 +117,7 @@ void Memory::write(uint32_t addr, uint32_t data, uint32_t wmask) {
     // 1. MMIO：串口输出
     if (addr == SERIAL_PORT) {
         putchar((char)(data & 0xFF));
+        fflush(stdout);
         return;
     }
 

@@ -1,9 +1,3 @@
-// Single-issue routing stage.
-//
-// This module is deliberately the only place that decides which backend unit
-// owns an instruction.  Keeping the decision here means a future dual-issue
-// implementation can replace the scalar input/output ports with issue lanes
-// (or queues) without changing IDU, EXU, or LSU request formats.
 module Issue(
     input  core_types_pkg::decoded_uop_t uop_i,
     input  logic [31:0]                  rs1_data_i,
@@ -17,8 +11,6 @@ module Issue(
 
     logic is_lsu_uop;
 
-    // Loads and stores are issued only to LSU.  All remaining currently
-    // supported instructions (integer ALU, control flow, and CSR) use EXU.
     assign is_lsu_uop = uop_i.load || uop_i.store;
     assign lsu_valid_o = is_lsu_uop;
     assign exu_valid_o = !is_lsu_uop;
@@ -46,8 +38,6 @@ module Issue(
             lsu_req_o.meta         = uop_i.meta;
             lsu_req_o.load         = uop_i.load;
             lsu_req_o.store        = uop_i.store;
-            // Memory address generation belongs to the LSU issue path, so a
-            // memory operation no longer needs to be sent through EXU first.
             lsu_req_o.addr         = rs1_data_i + uop_i.imm;
             lsu_req_o.store_data   = rs2_data_i;
             lsu_req_o.mem_size     = uop_i.mem_size;
