@@ -20,10 +20,12 @@ module csr_reg(
     output logic [31:0] pc_redirect_target
 );
 
+`ifndef SYNTHESIS
     import "DPI-C" function void sim_exit(
         input int pc,
         input int a0
     );
+`endif
 
 
     logic [63:0] mcycle;
@@ -193,12 +195,14 @@ module csr_reg(
     end
 
 
+`ifndef SYNTHESIS
     always_ff @(posedge clk) begin
         if (!rst && csr_type == `CSR_EBREAK) begin
             sim_exit(pc, a0);
         end
 
     end
+`endif
 
 
 endmodule

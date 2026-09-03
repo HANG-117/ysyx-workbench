@@ -59,33 +59,37 @@ void Simulator::reset(int n) {
 }
 
 void Simulator::step() {
-    // 记录本条指令执行前的状态（difftest 需要）
+    top_->clk = 0;
+    top_->eval();
+
+    // IFU/LSU now contain wait states, so a clock cycle is not necessarily an
+    // architectural instruction. Sample the retiring instruction before the
+    // active edge and run traces/difftest only when it actually commits.
+    bool commit = top_->commit_valid_o;
     uint32_t pc_before = pc();
     uint32_t inst_before = inst();
     CPU_state pre = snapshot();
 
-    top_->clk = 0;
-    top_->eval();
     top_->clk = 1;
     top_->eval();
     if (should_exit_) {
         return;  // 本条指令是 ebreak，不做 difftest 对比
     }
 
-    if (ITRACE) {
+    if (ITRACE && commit) {
         std::cout << "Cycle: " << std::dec << cycle_
-                  << ", PC: 0x" << std::hex << pc()
-                  << ", Instruction: 0x" << std::hex << inst()
-                  << ", Disassembly: " << disassemble_rv32e(inst(), pc())
+                  << ", PC: 0x" << std::hex << pc_before
+                  << ", Instruction: 0x" << std::hex << inst_before
+                  << ", Disassembly: " << disassemble_rv32e(inst_before, pc_before)
                   << std::endl;
     }
     cycle_++;
 
-    if (FTRACE) {
-        ftrace_check(pc(), inst(), reg(1));
+    if (FTRACE && commit) {
+        ftrace_check(pc_before, inst_before, reg(1));
     }
 
-    if (difftest_) {
+    if (difftest_ && commit) {
         difftest_->step(pre, snapshot(), inst_before);
     }
 }
@@ -95,7 +99,7 @@ uint32_t Simulator::pc() const {
 }
 
 uint32_t Simulator::inst() const {
-    return top_->rootp->NPC__DOT__inst;
+    return top_->rootp->NPC__DOT__ifu_inst__DOT__imem_rdata;
 }
 
 uint32_t Simulator::reg(int idx) const {

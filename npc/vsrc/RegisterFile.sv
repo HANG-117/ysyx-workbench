@@ -12,11 +12,11 @@ module RegisterFile #(ADDR_WIDTH = 1, DATA_WIDTH = 1) (
 	output [DATA_WIDTH-1:0] a0_o
 );
 
+	reg [DATA_WIDTH-1:0] rf [2**ADDR_WIDTH-1:0];
 
 	assign rdata1 = raddr1 == 0 ? 0 : rf[raddr1];
 	assign rdata2 = raddr2 == 0 ? 0 : rf[raddr2];
 	assign a0_o = rf[10]; // a0 is x10
-	reg [DATA_WIDTH-1:0] rf [2**ADDR_WIDTH-1:0];
 	always @(posedge clk) begin
     	if(rst) begin
 			for(int i = 0; i < 2**ADDR_WIDTH; i = i + 1) begin

@@ -2,7 +2,20 @@
 
 module NPC(
     input clk,
-    input rst
+    input rst,
+    output logic commit_valid_o
+`ifdef SYNTHESIS
+    ,
+    output logic [31:0] imem_addr_o,
+    input  logic [31:0] imem_rdata_i,
+
+    output logic        dmem_valid_o,
+    output logic        dmem_we_o,
+    output logic [31:0] dmem_addr_o,
+    output logic [31:0] dmem_wdata_o,
+    output logic [3:0]  dmem_wstrb_o,
+    input  logic [31:0] dmem_rdata_i
+`endif
 );
 
 logic [31:0] inst;
@@ -24,7 +37,10 @@ core_types_pkg::wbu_req_t     wbu_req;
 core_types_pkg::reg_write_t   reg_write;
 logic                         exu_issue_valid;
 logic                         lsu_issue_valid;
+logic                         ifu_valid;
+logic                         lsu_result_valid;
 logic [31:0]                  issue_next_pc;
+logic [3:0]                   active_csr_type;
 
 
 IFU ifu_inst(
@@ -33,8 +49,15 @@ IFU ifu_inst(
     .brach_target_i(issue_next_pc),
     .pc_redirect_valid(pc_redirect_valid),
     .pc_redirect_target(pc_redirect_target),
+    .ready_i(commit_valid_o),
+    .valid_o(ifu_valid),
     .inst_o(inst),
     .pc_o(pc)
+`ifdef SYNTHESIS
+    ,
+    .imem_addr_o(imem_addr_o),
+    .imem_rdata_i(imem_rdata_i)
+`endif
 );
 
 IDU idu_inst(
@@ -54,7 +77,7 @@ RegisterFile #(.ADDR_WIDTH(5), .DATA_WIDTH(32)) regfile_inst(
     .rdata2(reg_rdata2),
     .waddr(reg_write.addr),
     .wdata(reg_write.data),
-    .wen(reg_write.wen),
+    .wen(reg_write.wen && commit_valid_o),
     .a0_o(a0)
 );
 
@@ -62,7 +85,7 @@ csr_reg csr_reg_inst(
     .clk(clk),
     .rst(rst),
     .addr(decoded_uop.csr_addr),
-    .csr_type(decoded_uop.csr_type),
+    .csr_type(active_csr_type),
     .rs1_addr(decoded_uop.meta.rs1_addr),
     .rs1_data(reg_rdata1),
     .pc(decoded_uop.meta.pc),
@@ -83,7 +106,7 @@ Issue issue_inst(
 );
 
 EXU exu_inst(
-    .valid_i(exu_issue_valid),
+    .valid_i(ifu_valid && exu_issue_valid),
     .req_i(exu_req),
     .result_o(exu_result)
 );
@@ -95,12 +118,31 @@ always_comb begin
                                     : (decoded_uop.meta.pc + 32'd4);
 end
 
+// Do not allow stale irom data to create architectural side effects while
+// IFU is fetching. A memory instruction retires only with LSU's response.
+always_comb begin
+    active_csr_type = ifu_valid ? decoded_uop.csr_type : `CSR_NONE;
+    commit_valid_o  = ifu_valid &&
+                      (exu_issue_valid ||
+                       (lsu_issue_valid && lsu_result_valid));
+end
+
 LSU lsu_inst(
     .clk(clk),
     .rst(rst),
-    .valid_i(lsu_issue_valid),
+    .valid_i(ifu_valid && lsu_issue_valid),
     .req_i(lsu_req),
+    .result_valid_o(lsu_result_valid),
     .result_o(lsu_result)
+`ifdef SYNTHESIS
+    ,
+    .dmem_valid_o(dmem_valid_o),
+    .dmem_we_o(dmem_we_o),
+    .dmem_addr_o(dmem_addr_o),
+    .dmem_wdata_o(dmem_wdata_o),
+    .dmem_wstrb_o(dmem_wstrb_o),
+    .dmem_rdata_i(dmem_rdata_i)
+`endif
 );
 
 always_comb begin

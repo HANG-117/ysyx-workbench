@@ -18,7 +18,7 @@ public:
     // 复位 n 个时钟周期
     void reset(int n);
 
-    // 单个时钟周期（含 itrace / ftrace 输出，以及 difftest 对比）
+    // 单个时钟周期；仅在指令提交的周期执行 trace/difftest
     void step();
 
     // 挂载 difftest 对比器（必须在 reset 之前设置；reset 期间自动跳过对比）

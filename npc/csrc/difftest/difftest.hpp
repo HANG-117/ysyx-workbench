@@ -26,27 +26,16 @@ class Difftest {
 public:
     Difftest(Simulator& sim, Memory& mem);
 
-    // dlopen 参考模型动态库并完成初始化：
-    //   1. 定位 SO (NPC_REF_SO 环境变量 > REF_SO_PATH 编译宏 > 默认名)
-    //   2. dlsym 5 个 difftest_* 接口
-    //   3. difftest_init + 镜像同步 (memcpy) + 寄存器同步 (regcpy)
-    // 成功返回 true 并启用对比；失败返回 false (打印原因，仿真继续但不对比)。
     bool init();
 
     void enable() { enabled_ = true; }
     bool enabled() const { return enabled_; }
     void disable() { enabled_ = false; }
-    // 每执行完一条指令调用一次：
-    //   pre  = DUT 执行本条指令前的状态 (pc 即本条指令地址)
-    //   post = DUT 执行后的状态
-    //   inst = 本条指令的机器码
-    // 内部流程：DUT 状态推给 ref -> ref 执行 1 条 -> 取回 ref 状态 -> 比较。
-    // 不一致时打印完整报告并 exit(1)。
+
     void step(const CPU_state& pre, const CPU_state& post, uint32_t inst);
 
 private:
-    // 比较 DUT/ref 状态；不一致时打印报告 (pc、指令、全部寄存器、第一个不一致点)，
-    // 返回 false。pc 为当前指令地址，inst 为当前指令。
+
     bool checkregs(const CPU_state& dut, const CPU_state& ref, uint32_t pc, uint32_t inst);
 
     Simulator& sim_;
@@ -55,7 +44,6 @@ private:
     bool enabled_;
     void* handle_;
 
-    // 参考模型导出函数指针 (与 NEMU src/cpu/difftest/ref.c 对应)
     void (*ref_difftest_init)(int port);
     void (*ref_difftest_memcpy)(uint32_t addr, void* buf, size_t n, int direction);
     void (*ref_difftest_regcpy)(void* dut, int direction);

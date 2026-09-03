@@ -19,33 +19,71 @@
 /* http://en.wikibooks.org/wiki/Serial_Programming/8250_UART_Programming */
 // NOTE: this is compatible to 16550
 
-#define CH_OFFSET 0
+  #include <sys/select.h>
+  #include <unistd.h>
+  #include <string.h>
+
+  #define TX_OFFSET 0
+  #define RX_OFFSET 4
 
 static uint8_t *serial_base = NULL;
 
-
 static void serial_putc(char ch) {
-  MUXDEF(CONFIG_TARGET_AM, putch(ch), putc(ch, stderr));
+    MUXDEF(CONFIG_TARGET_AM, putch(ch), putc(ch, stderr));
+  }
+
+static char serial_getc(void) {
+  fd_set readfds;
+  FD_ZERO(&readfds);
+  FD_SET(STDIN_FILENO, &readfds);
+
+  struct timeval timeout = {
+    .tv_sec = 0,
+    .tv_usec = 0,
+  };
+
+  if (select(STDIN_FILENO + 1, &readfds, NULL, NULL, &timeout) <= 0) {
+    return 0;
+  }
+
+  uint8_t ch;
+  if (read(STDIN_FILENO, &ch, 1) != 1) {
+    return 0;
+  }
+
+  return ch;
 }
 
 static void serial_io_handler(uint32_t offset, int len, bool is_write) {
-  assert(len == 1);
   switch (offset) {
-    /* We bind the serial port with the host stderr in NEMU. */
-    case CH_OFFSET:
-      if (is_write) serial_putc(serial_base[0]);
-      else panic("do not support read");
+    case TX_OFFSET:
+      assert(is_write && len == 1);
+      serial_putc(serial_base[TX_OFFSET]);
       break;
-    default: panic("do not support offset = %d", offset);
+
+    case RX_OFFSET: {
+      assert(!is_write && len == 4);
+      uint32_t data = serial_getc();
+      memcpy(serial_base + RX_OFFSET, &data, sizeof(data));
+      break;
+    }
+
+    default:
+      panic("unsupported serial access: offset=%u len=%d write=%d",
+            offset, len, is_write);
   }
 }
 
-void init_serial() {
+void init_serial(void) {
   serial_base = new_space(8);
-#ifdef CONFIG_HAS_PORT_IO
-  add_pio_map ("serial", CONFIG_SERIAL_PORT, serial_base, 8, serial_io_handler);
-#else
-  add_mmio_map("serial", CONFIG_SERIAL_MMIO, serial_base, 8, serial_io_handler);
-#endif
+  memset(serial_base, 0, 8);
 
+#ifdef CONFIG_HAS_PORT_IO
+  add_pio_map("serial", CONFIG_SERIAL_PORT,
+              serial_base, 8, serial_io_handler);
+#else
+  add_mmio_map("serial", CONFIG_SERIAL_MMIO,
+                serial_base, 8, serial_io_handler);
+#endif
 }
+

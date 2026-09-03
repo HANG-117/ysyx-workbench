@@ -53,7 +53,6 @@ module alu(
                 alu_result_o =
                     $signed(rs1_i) >>> rs2_i[4:0];
             end
-
             `ALU_OR: begin
                 alu_result_o = rs1_i | rs2_i;
             end

@@ -1,6 +1,6 @@
 #include <am.h>
 #include <klib-macros.h>
-#define SERIAL_PORT 0x10000000
+#define SERIAL_PORT 0xa0000000
 extern char _heap_start;
 int main(const char *args);
 
@@ -21,7 +21,6 @@ void halt(int code) {
         "j .\n\t"               // 原地跳转，防止 ebreak 被跳过
     );
 
-    // 2. 防御性死循环
     while (1);
 
     // 3. 【关键修复】告诉编译器这里永远不可达
